@@ -1,0 +1,10 @@
+[package]
+name = "phynix-parse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+bitflags = "2.10"
+phynix-core = { path = "../phynix-core" }
+phynix-lex = { path = "../phynix-lex" }

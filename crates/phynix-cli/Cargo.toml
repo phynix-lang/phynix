@@ -1,0 +1,13 @@
+[package]
+name = "phynix-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5.50", features = ["derive"] }
+phynix-core = { path = "../phynix-core" }
+phynix-lex = { path = "../phynix-lex" }
+phynix-parse = { path = "../phynix-parse" }
+walkdir = "2"
+#phynix-vm = { path = "../phynix-vm" }

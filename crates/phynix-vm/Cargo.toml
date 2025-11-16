@@ -1,0 +1,8 @@
+[package]
+name = "phynix-vm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+phynix-parse = { path = "../phynix-parse" }

@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "crates/phynix-cli",
+    "crates/phynix-core",
+    "crates/phynix-lex",
+    "crates/phynix-parse",
+    "crates/phynix-vm",
+]
+resolver = "2"
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+authors = ["Walter Woshid <wotschel.valentin@googlemail.com>"]

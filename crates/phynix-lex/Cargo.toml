@@ -1,0 +1,9 @@
+[package]
+name = "phynix-lex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+memchr = "2.7"
+thiserror = "2"
+phynix-core = { path = "../phynix-core" }
