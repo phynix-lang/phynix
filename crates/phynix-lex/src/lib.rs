@@ -475,6 +475,28 @@ impl<'src> Lexer<'src> {
                 continue;
             }
 
+            // .4 / .4e2 style floats
+            if b == b'.' && self.peek2().map(is_dec_digit).unwrap_or(false) {
+                self.i += 1;
+                self.take_digits_us();
+
+                if matches!(self.peek(), b'e' | b'E') {
+                    let save = self.i;
+                    self.i += 1;
+                    if matches!(self.peek(), b'+' | b'-') {
+                        self.i += 1;
+                    }
+                    if is_dec_digit(self.peek()) {
+                        self.take_digits_us();
+                    } else {
+                        self.i = save;
+                    }
+                }
+
+                self.push(TokenKind::Float, self.span());
+                continue;
+            }
+
             // Operators / Punctuations
             if let Some(kind) = self.scan_punct() {
                 self.push(kind, self.span());
