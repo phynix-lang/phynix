@@ -71,6 +71,20 @@ impl<'src> Parser<'src> {
             return self.parse_qualified_expr();
         }
 
+        if self.at(TokenKind::KwStatic) && self.at_nth(1, TokenKind::ColCol) {
+            let tok = self.bump();
+            let span = tok.span;
+
+            let ident = Ident { span };
+            let qn = QualifiedName {
+                absolute: false,
+                parts: vec![ident],
+                span,
+            };
+
+            return Some(Expr::ConstFetch { name: qn, span });
+        }
+
         if self.at(TokenKind::Ident) {
             if self.at_any(&[
                 TokenKind::KwFor,
