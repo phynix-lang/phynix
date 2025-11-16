@@ -208,11 +208,20 @@ impl<'src> Parser<'src> {
 
                 if self.at(TokenKind::Ellipsis) {
                     let ell = self.bump();
+
+                    if args.is_empty()
+                        && !saw_named
+                        && self.at(TokenKind::RParen)
+                    {
+                        break;
+                    }
+
                     if saw_named {
                         self.error_here(
                             "variadic unpack not allowed after named arguments",
                         );
                     }
+
                     if let Some(e) = self.parse_expr() {
                         let span = Span {
                             start: arg_start,
