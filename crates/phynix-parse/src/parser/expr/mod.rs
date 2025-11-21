@@ -39,12 +39,16 @@ impl<'src> Parser<'src> {
             return self.parse_include_expr(kind);
         }
 
-        if (self.at(TokenKind::KwStatic)
-            && (self.nth_kind(1) == &TokenKind::KwFn
-                || self.nth_kind(1) == &TokenKind::KwFunction))
-            || self.at_any(&[TokenKind::KwFn, TokenKind::KwFunction])
-        {
+        if self.at_closure_start() {
             return self.parse_closure_expr();
+        }
+
+        if self.at(TokenKind::AttrOpen) {
+            let _attrs = self.parse_attribute_group_list();
+
+            if self.at_closure_start() {
+                return self.parse_closure_expr();
+            }
         }
 
         if self.at(TokenKind::KwNew) {
@@ -108,6 +112,14 @@ impl<'src> Parser<'src> {
         }
 
         None
+    }
+
+    #[inline]
+    fn at_closure_start(&self) -> bool {
+        (self.at(TokenKind::KwStatic)
+            && (self.nth_kind(1) == &TokenKind::KwFn
+                || self.nth_kind(1) == &TokenKind::KwFunction))
+            || self.at_any(&[TokenKind::KwFn, TokenKind::KwFunction])
     }
 
     pub(crate) fn parse_expr(&mut self) -> Option<Expr> {

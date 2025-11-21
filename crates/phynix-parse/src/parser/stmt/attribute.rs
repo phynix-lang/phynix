@@ -4,7 +4,7 @@ use phynix_core::Span;
 use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
-    pub(super) fn parse_attribute_group_list(
+    pub(crate) fn parse_attribute_group_list(
         &mut self,
     ) -> Option<Vec<AttributeGroup>> {
         if !self.at(TokenKind::AttrOpen) {
