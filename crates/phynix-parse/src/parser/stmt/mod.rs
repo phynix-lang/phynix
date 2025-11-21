@@ -97,7 +97,16 @@ impl<'src> Parser<'src> {
         }
 
         if self.at(TokenKind::KwFunction) {
-            return self.parse_function_stmt();
+            // Anonymous closure as statement: function (...) { ... };
+            // or function &(...) { ... };
+            return if self.at_nth(1, TokenKind::LParen)
+                || (self.at_nth(1, TokenKind::Amp)
+                    && self.at_nth(2, TokenKind::LParen))
+            {
+                self.parse_expr_stmt()
+            } else {
+                self.parse_function_stmt()
+            };
         }
 
         if self.at(TokenKind::KwGlobal) {
