@@ -70,7 +70,8 @@ impl<'src> Parser<'src> {
             if self.eat(TokenKind::LParen) {
                 if !self.at(TokenKind::RParen) {
                     loop {
-                        if self.at(TokenKind::Ident)
+                        if (self.at(TokenKind::Ident)
+                            || self.is_ident_like_kw(self.kind()))
                             && self.at_nth(1, TokenKind::Colon)
                         {
                             let _name = self.bump();

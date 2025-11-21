@@ -940,78 +940,9 @@ impl<'src> Parser<'src> {
 
     #[inline]
     fn bump_ident_like(&mut self) -> Option<&'src Token> {
-        #[inline(always)]
-        fn is_kw(k: &TokenKind) -> bool {
-            matches!(
-                k,
-                TokenKind::KwAbstract
-                    | TokenKind::KwAnd
-                    | TokenKind::KwArray
-                    | TokenKind::KwAs
-                    | TokenKind::KwBreak
-                    | TokenKind::KwCase
-                    | TokenKind::KwCatch
-                    | TokenKind::KwClass
-                    | TokenKind::KwClone
-                    | TokenKind::KwConst
-                    | TokenKind::KwContinue
-                    | TokenKind::KwDeclare
-                    | TokenKind::KwDefault
-                    | TokenKind::KwDie
-                    | TokenKind::KwDo
-                    | TokenKind::KwEcho
-                    | TokenKind::KwElse
-                    | TokenKind::KwElseIf
-                    | TokenKind::KwEndDeclare
-                    | TokenKind::KwEndFor
-                    | TokenKind::KwEndForeach
-                    | TokenKind::KwEndIf
-                    | TokenKind::KwEndSwitch
-                    | TokenKind::KwEndWhile
-                    | TokenKind::KwEnum
-                    | TokenKind::KwExit
-                    | TokenKind::KwExtends
-                    | TokenKind::KwFinal
-                    | TokenKind::KwFinally
-                    | TokenKind::KwFn
-                    | TokenKind::KwFor
-                    | TokenKind::KwForeach
-                    | TokenKind::KwFrom
-                    | TokenKind::KwFunction
-                    | TokenKind::KwGlobal
-                    | TokenKind::KwGoto
-                    | TokenKind::KwIf
-                    | TokenKind::KwImplements
-                    | TokenKind::KwInclude
-                    | TokenKind::KwIncludeOnce
-                    | TokenKind::KwInstanceof
-                    | TokenKind::KwInterface
-                    | TokenKind::KwMatch
-                    | TokenKind::KwNamespace
-                    | TokenKind::KwNew
-                    | TokenKind::KwOr
-                    | TokenKind::KwPrivate
-                    | TokenKind::KwProtected
-                    | TokenKind::KwPublic
-                    | TokenKind::KwReadonly
-                    | TokenKind::KwRequire
-                    | TokenKind::KwRequireOnce
-                    | TokenKind::KwReturn
-                    | TokenKind::KwStatic
-                    | TokenKind::KwSwitch
-                    | TokenKind::KwThrow
-                    | TokenKind::KwTrait
-                    | TokenKind::KwTry
-                    | TokenKind::KwUse
-                    | TokenKind::KwWhile
-                    | TokenKind::KwXor
-                    | TokenKind::KwYield
-            )
-        }
-
         match self.kind() {
             TokenKind::Ident => Some(self.bump()),
-            k if is_kw(k) => Some(self.bump()), // accept keyword-as-name in member position
+            k if self.is_ident_like_kw(k) => Some(self.bump()),
             _ => None,
         }
     }
