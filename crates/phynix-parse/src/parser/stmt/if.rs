@@ -142,12 +142,34 @@ impl<'src> Parser<'src> {
             ]);
             last_end = end;
             block
-        } else if have_rparen {
+        } else if have_rparen && self.at(TokenKind::LBrace) {
             parse_branch_block(
                 self,
                 &mut last_end,
                 "expected '{' after if(...)",
             )
+        } else if have_rparen {
+            // Single-statement if-body: if (cond) stmt;
+            if let Some(stmt) = self.parse_stmt() {
+                let span = Span {
+                    start: stmt.span().start,
+                    end: stmt.span().end,
+                };
+                last_end = span.end;
+                Block {
+                    items: vec![stmt],
+                    span,
+                }
+            } else {
+                let fake = Span {
+                    start: last_end,
+                    end: last_end,
+                };
+                Block {
+                    items: Vec::new(),
+                    span: fake,
+                }
+            }
         } else {
             Block {
                 items: Vec::new(),
