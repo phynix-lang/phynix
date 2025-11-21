@@ -109,36 +109,41 @@ impl<'src> Parser<'src> {
                 return Some(Expr::Error { span: qn_span });
             }
 
+            if self.eat(TokenKind::LBrace) {
+                let inner = match self.parse_expr() {
+                    Some(e) => e,
+                    None => {
+                        self.error_and_recover(
+                            "expected expression after '{' in '::{...}'",
+                            &[TokenKind::RBrace],
+                        );
+                        Expr::Error {
+                            span: self.prev_span().unwrap_or(qn_span),
+                        }
+                    },
+                };
+
+                let _ = self
+                    .expect(TokenKind::RBrace, "expected '}' after '::{expr}'");
+
+                let method_span = inner.span();
+                return Some(self.build_static_named_member_or_call(
+                    class_name,
+                    method_span,
+                    qn_span.start,
+                ));
+            }
+
             if let Some(id_tok) = self.expect_ident_like_or_sync(
                 "expected identifier after '::'",
                 SYNC_POSTFIX,
             ) {
                 let id_span = id_tok.span;
-
-                if self.eat(TokenKind::LParen) {
-                    let lp = self.prev_span().unwrap();
-                    let (args, rp) = self.parse_call_arguments(lp);
-                    let span = Span {
-                        start: qn_span.start,
-                        end: rp.end,
-                    };
-                    return Some(Expr::StaticCall {
-                        class: class_name,
-                        method: Ident { span: id_span },
-                        args,
-                        span,
-                    });
-                }
-
-                let span = Span {
-                    start: qn_span.start,
-                    end: id_span.end,
-                };
-                return Some(Expr::ClassConstFetch {
+                return Some(self.build_static_named_member_or_call(
                     class_name,
-                    constant: Ident { span: id_span },
-                    span,
-                });
+                    id_span,
+                    qn_span.start,
+                ));
             }
 
             self.error_and_recover(
@@ -180,6 +185,39 @@ impl<'src> Parser<'src> {
             name: qn,
             span: qn_span,
         })
+    }
+
+    #[inline]
+    fn build_static_named_member_or_call(
+        &mut self,
+        class_name: ClassNameRef,
+        method_span: Span,
+        qn_start: u32,
+    ) -> Expr {
+        if self.eat(TokenKind::LParen) {
+            let lp = self.prev_span().unwrap();
+            let (args, rp) = self.parse_call_arguments(lp);
+            let span = Span {
+                start: qn_start,
+                end: rp.end,
+            };
+            Expr::StaticCall {
+                class: class_name,
+                method: Ident { span: method_span },
+                args,
+                span,
+            }
+        } else {
+            let span = Span {
+                start: qn_start,
+                end: method_span.end,
+            };
+            Expr::ClassConstFetch {
+                class_name,
+                constant: Ident { span: method_span },
+                span,
+            }
+        }
     }
 
     #[inline]
