@@ -69,3 +69,24 @@ fn dot_leading_float_with_exponent_minus_is_float() {
     let k = kinds_php_prefixed(".4E-2");
     assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
 }
+
+#[test]
+fn exponent_without_digits_rolls_back_to_int_then_ident() {
+    let k = kinds_php_prefixed("1e");
+    assert_kinds_eq(&k, &[TokenKind::Int, TokenKind::Ident, TokenKind::Eof]);
+}
+
+#[test]
+fn exponent_sign_without_digits_rolls_back_to_int_then_ident() {
+    let k = kinds_php_prefixed("1e+x");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Int,
+            TokenKind::Ident,
+            TokenKind::Plus,
+            TokenKind::Ident,
+            TokenKind::Eof,
+        ],
+    );
+}
