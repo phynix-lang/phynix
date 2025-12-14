@@ -278,11 +278,6 @@ impl<'src> Parser<'src> {
             break;
         }
 
-        if self.at(TokenKind::KwEndIf) {
-            last_end = self.bump().span.end;
-            let _ = self.eat(TokenKind::Semicolon);
-        }
-
         let full_span = Span {
             start: start_pos,
             end: last_end,

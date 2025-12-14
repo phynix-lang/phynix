@@ -51,3 +51,11 @@ pub fn assert_else_has_n_items(stmt: &Stmt, n: usize) {
         other => panic!("expected Stmt::If, got: {other:#?}"),
     }
 }
+
+pub fn assert_no_diags(diags: &[Diagnostic]) {
+    assert!(
+        diags.is_empty(),
+        "expected no diagnostics, got:\n{:#?}",
+        diags
+    );
+}
