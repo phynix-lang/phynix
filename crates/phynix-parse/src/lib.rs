@@ -1,5 +1,5 @@
-mod ast;
-mod parser;
+pub mod ast;
+pub mod parser;
 
 use ast::Script;
 use phynix_core::diagnostics::Diagnostic;

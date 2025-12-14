@@ -2,7 +2,7 @@ mod attribute;
 mod expr;
 mod literal;
 mod name;
-mod script;
+pub mod script;
 mod stmt;
 mod type_ref;
 

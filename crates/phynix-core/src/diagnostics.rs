@@ -14,6 +14,7 @@ pub struct Label {
     pub is_primary: bool,
 }
 
+#[derive(Debug)]
 pub struct Diagnostic {
     pub span: Span,
     pub severity: Severity,
