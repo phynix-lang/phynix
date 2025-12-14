@@ -21,3 +21,27 @@ fn ints_and_floats() {
         ],
     );
 }
+
+#[test]
+fn dot_leading_float_is_tokenized() {
+    let k = kinds_php_prefixed(".4");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn dot_leading_float_with_exponent_is_tokenized() {
+    let k = kinds_php_prefixed(".4e2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn dot_leading_float_exponent_without_digits_rolls_back_to_dot_ident() {
+    let k = kinds_php_prefixed(".4efoo");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Ident, TokenKind::Eof]);
+}
+
+#[test]
+fn dot_leading_float_exponent_allows_sign() {
+    let k = kinds_php_prefixed(".4E-2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
