@@ -1,11 +1,12 @@
 mod util;
 
-use crate::util::{assert_kinds_eq, kinds};
+use crate::util::{assert_kinds_eq, kinds_php_prefixed};
 use phynix_lex::TokenKind;
 
 #[test]
 fn braces_commas_colons() {
-    let k = kinds("{ } ( ) [ ] ; , : . + - * / % & | ^ @ ! = < > ?");
+    let k =
+        kinds_php_prefixed("{ } ( ) [ ] ; , : . + - * / % & | ^ @ ! = < > ?");
     assert_kinds_eq(
         &k,
         &[

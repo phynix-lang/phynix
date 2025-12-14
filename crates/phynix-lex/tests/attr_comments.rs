@@ -1,11 +1,14 @@
 mod util;
 
-use crate::util::{assert_kinds_eq, assert_kinds_eq_including_trivia, kinds};
+use crate::util::{
+    assert_kinds_eq, assert_kinds_eq_including_trivia,
+    kinds_php_prefixed,
+};
 use phynix_lex::TokenKind;
 
 #[test]
 fn attr_open_beats_hash_comment() {
-    let k = kinds("#[Route]\n");
+    let k = kinds_php_prefixed("#[Route]\n");
     assert_kinds_eq(
         &k,
         &[
@@ -19,7 +22,7 @@ fn attr_open_beats_hash_comment() {
 
 #[test]
 fn hash_comment_is_skipped() {
-    let k = kinds("# hello\n42");
+    let k = kinds_php_prefixed("# hello\n42");
     assert_kinds_eq_including_trivia(
         &k,
         &[
@@ -33,7 +36,7 @@ fn hash_comment_is_skipped() {
 
 #[test]
 fn docblock_kept_block_comment_skipped() {
-    let k = kinds("/** @var int */ $x; /* trailing */");
+    let k = kinds_php_prefixed("/** @var int */ $x; /* trailing */");
     assert_kinds_eq_including_trivia(
         &k,
         &[

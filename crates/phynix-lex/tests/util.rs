@@ -13,8 +13,27 @@ pub fn lex_err(src: &str) -> LexError {
         .expect("expected err")
 }
 
+pub fn lex_err_php_prefixed(src: &str) -> LexError {
+    let prefix = "<?php ";
+    let prefixed = format!("{}{}", prefix, src);
+    lex(&prefixed, LanguageKind::PhpCompat, Strictness::Lenient)
+        .err()
+        .expect("expected err")
+}
+
 pub fn kinds(src: &str) -> Vec<TokenKind> {
     lex_ok(src).into_iter().map(|token| token.kind).collect()
+}
+
+pub fn kinds_php_prefixed(src: &str) -> Vec<TokenKind> {
+    let prefix = "<?php ";
+    let prefixed = format!("{}{}", prefix, src);
+    let prefix_len = prefix.len();
+    lex_ok(&prefixed)
+        .into_iter()
+        .filter(|token| (token.span.start as usize) >= prefix_len)
+        .map(|token| token.kind)
+        .collect()
 }
 
 fn texts(src: &str) -> Vec<String> {

@@ -1,11 +1,11 @@
 mod util;
 
-use crate::util::{assert_kinds_eq, kinds};
+use crate::util::{assert_kinds_eq, kinds_php_prefixed};
 use phynix_lex::TokenKind;
 
 #[test]
 fn idents_and_varidents() {
-    let k = kinds("$über über _x");
+    let k = kinds_php_prefixed("$über über _x");
     assert_kinds_eq(
         &k,
         &[
@@ -19,7 +19,7 @@ fn idents_and_varidents() {
 
 #[test]
 fn namespaces_and_sigils() {
-    let k = kinds("$$foo ${bar} Foo\\Bar");
+    let k = kinds_php_prefixed("$$foo ${bar} Foo\\Bar");
     assert_kinds_eq(
         &k,
         &[

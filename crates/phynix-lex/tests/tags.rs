@@ -4,12 +4,11 @@ use crate::util::{assert_kinds_eq, kinds};
 use phynix_lex::TokenKind;
 
 #[test]
-fn php_tags_and_echo_open() {
-    let k = kinds("<?php <?= 1 ?>");
+fn echo_open_tag_is_tokenized() {
+    let k = kinds("<?= 1 ?>");
     assert_kinds_eq(
         &k,
         &[
-            TokenKind::PhpOpen,
             TokenKind::EchoOpen,
             TokenKind::Int,
             TokenKind::PhpClose,
