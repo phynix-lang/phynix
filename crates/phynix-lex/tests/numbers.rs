@@ -45,3 +45,27 @@ fn dot_leading_float_exponent_allows_sign() {
     let k = kinds_php_prefixed(".4E-2");
     assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
 }
+
+#[test]
+fn int_with_exponent_plus_is_float() {
+    let k = kinds_php_prefixed("1e+2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn int_with_exponent_minus_is_float() {
+    let k = kinds_php_prefixed("1E-2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn dot_leading_float_with_exponent_plus_is_float() {
+    let k = kinds_php_prefixed(".4e+2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn dot_leading_float_with_exponent_minus_is_float() {
+    let k = kinds_php_prefixed(".4E-2");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
