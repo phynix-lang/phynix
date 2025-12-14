@@ -248,13 +248,28 @@ impl<'src> Parser<'src> {
 
                     last_end = block_end;
                     else_block_opt = Some(block);
-                } else {
+                } else if self.at(TokenKind::LBrace) {
                     let block = parse_branch_block(
                         self,
                         &mut last_end,
                         "expected '{' after 'else'",
                     );
                     else_block_opt = Some(block);
+                } else {
+                    // Single-statement else-body: else stmt;
+                    if let Some(stmt) = self.parse_stmt() {
+                        let span = Span {
+                            start: stmt.span().start,
+                            end: stmt.span().end,
+                        };
+                        last_end = span.end;
+                        else_block_opt = Some(Block {
+                            items: vec![stmt],
+                            span,
+                        });
+                    } else {
+                        self.error_here("expected statement after 'else'");
+                    }
                 }
 
                 break;
