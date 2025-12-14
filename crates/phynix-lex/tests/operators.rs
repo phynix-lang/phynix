@@ -34,3 +34,17 @@ fn longest_operators() {
         ],
     );
 }
+
+#[test]
+fn spaceship_operator_is_tokenized() {
+    let k = kinds_php_prefixed("1 <=> 2");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Int,
+            TokenKind::Spaceship,
+            TokenKind::Int,
+            TokenKind::Eof,
+        ],
+    );
+}
