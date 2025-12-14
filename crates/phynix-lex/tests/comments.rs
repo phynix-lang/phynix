@@ -2,7 +2,7 @@ mod util;
 
 use crate::util::{
     assert_kinds_eq, assert_kinds_eq_including_trivia,
-    kinds_php_prefixed,
+    kinds_php_prefixed, lex_err_php_prefixed,
 };
 use phynix_lex::TokenKind;
 
@@ -49,4 +49,11 @@ fn docblock_kept_block_comment_skipped() {
             TokenKind::Eof,
         ],
     )
+}
+
+#[test]
+fn unterminated_block_comment_errors() {
+    let e = lex_err_php_prefixed("/* no end");
+    let msg = format!("{}", e);
+    assert!(msg.contains("Unterminated block comment"), "got: {msg}");
 }
