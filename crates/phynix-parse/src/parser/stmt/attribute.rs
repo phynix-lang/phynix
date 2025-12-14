@@ -43,27 +43,32 @@ impl<'src> Parser<'src> {
                 self.bump();
             }
 
-            if !self.at(TokenKind::Ident) {
-                self.error_here("expected attribute name");
+            if self.at(TokenKind::RBracket) {
                 break;
             }
 
-            let _name_token = self.bump();
-
-            loop {
-                if self.at(TokenKind::Backslash) {
-                    self.bump();
-                    if self.at(TokenKind::Ident) {
+            if !self.at(TokenKind::Ident) {
+                self.error_and_recover(
+                    "expected attribute name",
+                    &[TokenKind::Comma, TokenKind::RBracket],
+                );
+            } else {
+                let _name_token = self.bump();
+                loop {
+                    if self.at(TokenKind::Backslash) {
                         self.bump();
-                        continue;
+                        if self.at(TokenKind::Ident) {
+                            self.bump();
+                            continue;
+                        } else {
+                            self.error_here(
+                                "expected identifier after '\\' in attribute name",
+                            );
+                            break;
+                        }
                     } else {
-                        self.error_here(
-                            "expected identifier after '\\' in attribute name",
-                        );
                         break;
                     }
-                } else {
-                    break;
                 }
             }
 
@@ -97,21 +102,35 @@ impl<'src> Parser<'src> {
                             }
                             continue;
                         }
+
                         break;
                     }
                 }
 
-                let _rparen_token = self.expect(
+                let _ = self.expect(
                     TokenKind::RParen,
                     "expected ')' in attribute args",
                 );
             }
 
             if self.eat(TokenKind::Comma) {
+                if self.at(TokenKind::RBracket) {
+                    break;
+                }
                 continue;
             }
 
-            break;
+            if self.at(TokenKind::RBracket) {
+                break;
+            }
+
+            self.error_and_recover(
+                "expected ',' or ']' after attribute",
+                &[TokenKind::Comma, TokenKind::RBracket],
+            );
+            if self.at(TokenKind::RBracket) {
+                break;
+            }
         }
 
         let end_span = if let Some(close_token) = self.expect(
