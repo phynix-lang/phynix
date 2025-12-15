@@ -108,3 +108,11 @@ fn heredoc_allows_indentation_before_closing_label() {
 
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_scan_breaks_when_no_newline_exists_in_remaining_input() {
+    let src = "<<<LBL\nhello";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
