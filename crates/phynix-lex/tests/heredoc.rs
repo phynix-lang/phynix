@@ -78,3 +78,17 @@ fn heredoc_with_quoted_label_missing_closing_quote_rolls_back() {
         ],
     );
 }
+
+#[test]
+fn heredoc_header_ends_on_lf() {
+    let src = "<<<LBL\nhello\nLBL\n";
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
+
+#[test]
+fn heredoc_header_ends_on_crlf() {
+    let src = "<<<LBL\r\nhello\r\nLBL\r\n";
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
