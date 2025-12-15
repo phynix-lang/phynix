@@ -48,3 +48,31 @@ fn spaceship_operator_is_tokenized() {
         ],
     );
 }
+
+#[test]
+fn and_and_operator_is_tokenized() {
+    let k = kinds_php_prefixed("true && false");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Ident,
+            TokenKind::AndAnd,
+            TokenKind::Ident,
+            TokenKind::Eof,
+        ],
+    );
+}
+
+#[test]
+fn or_or_operator_is_tokenized() {
+    let k = kinds_php_prefixed("true || false");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Ident,
+            TokenKind::OrOr,
+            TokenKind::Ident,
+            TokenKind::Eof,
+        ],
+    );
+}
