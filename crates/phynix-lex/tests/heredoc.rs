@@ -100,3 +100,11 @@ fn heredoc_scan_breaks_when_body_is_immediately_eof() {
 
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_allows_indentation_before_closing_label() {
+    let src = "<<<LBL\nhello\n \tLBL\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
