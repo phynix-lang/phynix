@@ -92,3 +92,11 @@ fn heredoc_header_ends_on_crlf() {
     let k = kinds_php_prefixed(src);
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_scan_breaks_when_body_is_immediately_eof() {
+    let src = "<<<LBL\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
