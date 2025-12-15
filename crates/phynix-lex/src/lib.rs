@@ -689,10 +689,6 @@ impl<'src> Lexer<'src> {
                 self.i = i + 2;
                 return Some(MinusMinus);
             },
-            (b'?', Some(b'>'), _) => {
-                self.i = i + 2;
-                return Some(PhpClose);
-            },
             _ => {},
         }
 
