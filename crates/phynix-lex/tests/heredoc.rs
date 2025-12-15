@@ -54,3 +54,27 @@ fn heredoc_allows_spaces_and_tabs_before_label() {
     let k = kinds_php_prefixed(src);
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_with_quoted_label_consumes_closing_quote() {
+    let src = "<<<\"LBL\"\nhello\nLBL\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
+
+#[test]
+fn heredoc_with_quoted_label_missing_closing_quote_rolls_back() {
+    let src = "<<<\"LBL\nhello\nLBL\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Shl,
+            TokenKind::Lt,
+            TokenKind::StrDq,
+            TokenKind::Eof,
+        ],
+    );
+}
