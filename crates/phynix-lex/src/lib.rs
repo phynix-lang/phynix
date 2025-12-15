@@ -1148,7 +1148,7 @@ fn kw_of_bytes(s: &[u8]) -> Option<TokenKind> {
         },
         10 => match s {
             b"endforeach" => Some(KwEndForeach),
-            b"encdeclare" => Some(KwEndDeclare),
+            b"enddeclare" => Some(KwEndDeclare),
             b"implements" => Some(KwImplements),
             b"instanceof" => Some(KwInstanceof),
             _ => None,
