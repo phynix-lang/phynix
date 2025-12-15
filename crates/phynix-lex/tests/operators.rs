@@ -5,7 +5,7 @@ use phynix_lex::TokenKind;
 
 #[test]
 fn longest_operators() {
-    let k = kinds_php_prefixed("=== !== ??= ?? ?-> -> << <<= >> >>= ** **= :: => ... ++ -- == != <= >=");
+    let k = kinds_php_prefixed("=== !== ??= ?? ?-> -> << <<= >> >>= ** **= :: => ... ++ -- == != <= >= ~");
     assert_kinds_eq(
         &k,
         &[
@@ -30,6 +30,7 @@ fn longest_operators() {
             TokenKind::NotEq,
             TokenKind::Le,
             TokenKind::Ge,
+            TokenKind::Tilde,
             TokenKind::Eof,
         ],
     );
