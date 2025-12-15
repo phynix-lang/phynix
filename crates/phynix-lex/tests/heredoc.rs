@@ -1,4 +1,4 @@
-use crate::util::{assert_kinds_eq, kinds};
+use crate::util::{assert_kinds_eq, kinds, kinds_php_prefixed};
 use phynix_lex::TokenKind;
 
 mod util;
@@ -45,4 +45,12 @@ $x = <<<1
             TokenKind::Eof,
         ],
     );
+}
+
+#[test]
+fn heredoc_allows_spaces_and_tabs_before_label() {
+    let src = "<<< \tLABEL\nhello\nLABEL\n";
+
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
