@@ -116,3 +116,25 @@ fn heredoc_scan_breaks_when_no_newline_exists_in_remaining_input() {
 
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_header_consumes_crlf() {
+    let src = "<<<LBL\r\nx\r\nLBL\r\n";
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
+
+#[test]
+fn heredoc_header_breaks_on_crlf() {
+    let src = "<<<LBL\r\nbody\nLBL\n";
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}
+
+#[test]
+fn heredoc_header_allows_cr_without_lf() {
+    let src = "<<<LBL\r";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+}

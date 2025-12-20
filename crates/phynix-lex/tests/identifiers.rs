@@ -112,3 +112,29 @@ fn all_keywords_are_recognized() {
         ],
     );
 }
+
+#[test]
+fn non_keyword_ascii_idents_fall_back_to_ident_for_each_length_bucket() {
+    let src = concat!(
+        "aaaaaa ",
+        "aaaaaaa ",
+        "aaaaaaaa ",
+        "aaaaaaaaa ",
+        "aaaaaaaaaa ",
+        "aaaaaaaaaaaa",
+    );
+
+    let k = kinds_php_prefixed(src);
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Ident,
+            TokenKind::Ident,
+            TokenKind::Ident,
+            TokenKind::Ident,
+            TokenKind::Ident,
+            TokenKind::Ident,
+            TokenKind::Eof,
+        ],
+    );
+}

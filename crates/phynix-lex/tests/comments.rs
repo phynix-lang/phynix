@@ -87,3 +87,31 @@ fn line_comment_stops_before_php_close() {
         ],
     );
 }
+
+#[test]
+fn block_comment_closes_via_star_slash() {
+    let k = kinds_php_prefixed("/* ok */");
+    assert_kinds_eq_including_trivia(
+        &k,
+        &[TokenKind::BlockComment, TokenKind::Eof],
+    );
+}
+
+#[test]
+fn block_comment_end_finds_star_then_slash() {
+    let k = kinds_php_prefixed("/*x*/");
+    assert_kinds_eq_including_trivia(
+        &k,
+        &[TokenKind::BlockComment, TokenKind::Eof],
+    );
+}
+
+#[test]
+fn block_comment_star_not_followed_by_slash_does_not_close() {
+    let k = kinds_php_prefixed("/* *x */");
+
+    assert_kinds_eq_including_trivia(
+        &k,
+        &[TokenKind::BlockComment, TokenKind::Eof],
+    );
+}

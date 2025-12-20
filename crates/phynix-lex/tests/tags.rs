@@ -72,3 +72,58 @@ fn unknown_question_tag_falls_back_to_html_then_lexes_lt_question() {
     let k = kinds("<?nope");
     assert_kinds_eq(&k, &[TokenKind::Lt, TokenKind::HtmlChunk, TokenKind::Eof]);
 }
+
+#[test]
+fn phx_open_tag_is_tokenized() {
+    let k = kinds("<?phx $x ?>");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::PhxOpen,
+            TokenKind::VarIdent,
+            TokenKind::PhpClose,
+            TokenKind::Eof,
+        ],
+    );
+}
+
+#[test]
+fn unknown_p_prefixed_tag_falls_back_to_lt_then_html_chunk() {
+    let k = kinds("<?p");
+    assert_kinds_eq(&k, &[TokenKind::Lt, TokenKind::HtmlChunk, TokenKind::Eof]);
+}
+
+#[test]
+fn php_close_is_handled_in_php_mode() {
+    let k = kinds("<?php ?>");
+    assert_kinds_eq(
+        &k,
+        &[TokenKind::PhpOpen, TokenKind::PhpClose, TokenKind::Eof],
+    );
+}
+
+#[test]
+fn phx_open_is_tokenized() {
+    let k = kinds("<?phx $x ?>");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::PhxOpen,
+            TokenKind::VarIdent,
+            TokenKind::PhpClose,
+            TokenKind::Eof,
+        ],
+    );
+}
+
+#[test]
+fn unknown_question_tag_resets_to_start_and_lexes_lt_then_html_chunk() {
+    let k = kinds("<?_");
+    assert_kinds_eq(&k, &[TokenKind::Lt, TokenKind::HtmlChunk, TokenKind::Eof]);
+}
+
+#[test]
+fn question_tag_at_eof_resets_to_lt_then_html_chunk() {
+    let k = kinds("<?");
+    assert_kinds_eq(&k, &[TokenKind::Lt, TokenKind::HtmlChunk, TokenKind::Eof]);
+}
