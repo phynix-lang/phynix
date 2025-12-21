@@ -8,16 +8,8 @@ impl<'src> Parser<'src> {
         debug_assert!(self.at(TokenKind::Int));
 
         let token = self.bump();
-        let string = self.slice(&token);
-
-        // Strip underscores for parsing
-        let mut no_us = String::with_capacity(string.len());
-        for ch in string.as_bytes() {
-            if *ch != b'_' {
-                no_us.push(*ch as char)
-            }
-        }
-        let t = no_us.as_str();
+        let string = self.slice_without_underscores(&token);
+        let t = string.as_str();
 
         let (radix, digits) = if let Some(rest) =
             t.strip_prefix("0x").or(t.strip_prefix("0X"))
@@ -52,16 +44,8 @@ impl<'src> Parser<'src> {
         debug_assert!(self.at(TokenKind::Float));
 
         let token = self.bump();
-        let string = self.slice(&token);
-
-        // Strip underscores for parsing
-        let mut no_us = String::with_capacity(string.len());
-        for ch in string.as_bytes() {
-            if *ch != b'_' {
-                no_us.push(*ch as char)
-            }
-        }
-        let t = no_us.as_str();
+        let string = self.slice_without_underscores(&token);
+        let t = string.as_str();
 
         match t.parse::<f64>() {
             Ok(v) => Some(Expr::FloatLiteral {
@@ -130,148 +114,16 @@ impl<'src> Parser<'src> {
         };
         let start_pos = array_start_span.start;
 
-        let mut items: Vec<ArrayItemExpr> = Vec::new();
+        let (items, end_pos) =
+            self.parse_array_items_until(TokenKind::RBracket, array_start_span);
 
-        if let Some(end) = self.eat_end_get_end(TokenKind::RBracket) {
-            let span = Span {
-                start: start_pos,
-                end,
-            };
-            return Some(Expr::ArrayLiteral { items, span });
-        }
-
-        loop {
-            let mut key_expr: Option<Expr> = None;
-            let mut is_unpack = false;
-            let item_start: u32;
-
-            let first_expr: Expr;
-
-            if self.at(TokenKind::Ellipsis) {
-                let ell = self.bump();
-                is_unpack = true;
-                item_start = ell.span.start;
-
-                first_expr = if let Some(expr) = self.parse_expr() {
-                    expr
-                } else {
-                    self.error_and_recover(
-                        "expected expression after '...'",
-                        &[TokenKind::Comma, TokenKind::RBracket],
-                    );
-                    let fake_span =
-                        self.prev_span().unwrap_or(array_start_span);
-                    Expr::Error { span: fake_span }
-                };
-            } else if self.at(TokenKind::LBracket) {
-                let lb = self.bump();
-                item_start = lb.span.start;
-                first_expr = self
-                    .parse_array_literal_expr_with_default(array_start_span);
-            } else if self.at(TokenKind::KwArray) {
-                first_expr = self
-                    .parse_array_construct_expr_with_default(array_start_span);
-                item_start = first_expr.span().start;
-            } else if let Some(expr) = self.parse_expr() {
-                item_start = expr.span().start;
-                first_expr = expr;
-            } else {
-                self.error_and_recover(
-                    "expected array item",
-                    &[TokenKind::Comma, TokenKind::RBracket],
-                );
-                let fake_span = self.prev_span().unwrap_or(array_start_span);
-                item_start = fake_span.start;
-                first_expr = Expr::Error { span: fake_span };
-            }
-
-            let value_expr: Expr;
-
-            if !is_unpack && self.eat(TokenKind::FatArrow) {
-                key_expr = Some(first_expr);
-
-                if self.at(TokenKind::LBracket) {
-                    let lb = self.bump();
-                    value_expr =
-                        self.parse_array_literal_expr_with_default(lb.span);
-                } else if self.at(TokenKind::KwArray) {
-                    value_expr = self.parse_array_construct_expr_with_default(
-                        array_start_span,
-                    );
-                } else if let Some(expr) = self.parse_expr() {
-                    value_expr = expr;
-                } else {
-                    self.error_and_recover(
-                        "expected value after '=>' in array item",
-                        &[TokenKind::Comma, TokenKind::RBracket],
-                    );
-                    let fake_span =
-                        self.prev_span().unwrap_or(array_start_span);
-                    value_expr = Expr::Error { span: fake_span };
-                }
-            } else {
-                value_expr = first_expr;
-
-                if is_unpack && self.at(TokenKind::FatArrow) {
-                    self.error_here("cannot use '=>' with unpacked array item");
-                }
-            }
-
-            let item_end = value_expr.span().end;
-            let item_span = Span {
-                start: item_start,
-                end: item_end,
-            };
-
-            items.push(ArrayItemExpr {
-                key: key_expr,
-                value: value_expr,
-                unpack: is_unpack,
-                span: item_span,
-            });
-
-            let had_comma = self.eat(TokenKind::Comma);
-
-            if self.eat(TokenKind::RBracket) {
-                let end_pos = self.prev_span().unwrap().end;
-                let full_span = Span {
-                    start: start_pos,
-                    end: end_pos,
-                };
-                return Some(Expr::ArrayLiteral {
-                    items,
-                    span: full_span,
-                });
-            }
-
-            if had_comma {
-                continue;
-            }
-
-            self.error_and_recover(
-                "expected ',' or ']' after array item",
-                &[
-                    TokenKind::RBracket,
-                    TokenKind::Semicolon,
-                    TokenKind::Comma,
-                    TokenKind::RBrace,
-                ],
-            );
-
-            let end_pos = self
-                .eat_end_get_end(TokenKind::RBracket)
-                .unwrap_or(item_end);
-
-            let full_span = Span {
+        Some(Expr::ArrayLiteral {
+            items,
+            span: Span {
                 start: start_pos,
                 end: end_pos,
-            };
-
-            return Some(Expr::ArrayLiteral {
-                items,
-                span: full_span,
-            });
-        }
+            },
+        })
     }
 
     pub(crate) fn parse_array_construct(&mut self) -> Option<Expr> {
@@ -281,143 +133,16 @@ impl<'src> Parser<'src> {
         let lp = self.expect(TokenKind::LParen, "expected '(' after array")?;
         let start_pos = array_token.span.start;
 
-        let mut items: Vec<ArrayItemExpr> = Vec::new();
+        let (items, end_pos) =
+            self.parse_array_items_until(TokenKind::RParen, lp.span);
 
-        if let Some(end) = self.eat_end_get_end(TokenKind::RParen) {
-            let full_span = Span {
+        Some(Expr::ArrayLiteral {
+            items,
+            span: Span {
                 start: start_pos,
-                end,
-            };
-            return Some(Expr::ArrayLiteral {
-                items,
-                span: full_span,
-            });
-        }
-
-        loop {
-            let mut key_expr: Option<Expr> = None;
-            let mut is_unpack = false;
-
-            let item_start: u32;
-            let first_expr: Expr;
-
-            if self.at(TokenKind::Ellipsis) {
-                let ell = self.bump();
-                is_unpack = true;
-                if self.at(TokenKind::LBracket) {
-                    let lb = self.bump();
-                    first_expr =
-                        self.parse_array_literal_expr_with_default(lb.span);
-                    item_start = ell.span.start;
-                } else if self.at(TokenKind::KwArray) {
-                    first_expr =
-                        self.parse_array_construct_expr_with_default(lp.span);
-                    item_start = ell.span.start;
-                } else if let Some(e) = self.parse_expr() {
-                    first_expr = e;
-                    item_start = ell.span.start;
-                } else {
-                    self.error_and_recover(
-                        "expected expression after '...'",
-                        &[TokenKind::Comma, TokenKind::RParen],
-                    );
-                    let fake = self.prev_span().unwrap_or(ell.span);
-                    first_expr = Expr::Error { span: fake };
-                    item_start = ell.span.start;
-                }
-            } else if self.at(TokenKind::LBracket) {
-                let lb = self.bump();
-                first_expr =
-                    self.parse_array_literal_expr_with_default(lb.span);
-                item_start = lb.span.start;
-            } else if self.at(TokenKind::KwArray) {
-                first_expr =
-                    self.parse_array_construct_expr_with_default(lp.span);
-                item_start = first_expr.span().start;
-            } else if let Some(first) = self.parse_expr() {
-                item_start = first.span().start;
-                first_expr = first;
-            } else {
-                self.error_and_recover(
-                    "expected array item",
-                    &[TokenKind::Comma, TokenKind::RParen],
-                );
-                let fake = self.prev_span().unwrap_or(lp.span);
-                first_expr = Expr::Error { span: fake };
-                item_start = fake.start;
-            }
-
-            let value_expr: Expr;
-
-            if !is_unpack && self.eat(TokenKind::FatArrow) {
-                key_expr = Some(first_expr);
-
-                if self.at(TokenKind::LBracket) {
-                    let lb = self.bump();
-                    value_expr =
-                        self.parse_array_literal_expr_with_default(lb.span);
-                } else if self.at(TokenKind::KwArray) {
-                    value_expr =
-                        self.parse_array_construct_expr_with_default(lp.span);
-                } else if let Some(e) = self.parse_expr() {
-                    value_expr = e;
-                } else {
-                    self.error_and_recover(
-                        "expected value after '=>' in array item",
-                        &[TokenKind::Comma, TokenKind::RParen],
-                    );
-                    let fake = self.prev_span().unwrap_or(lp.span);
-                    value_expr = Expr::Error { span: fake };
-                }
-            } else {
-                value_expr = first_expr;
-
-                if is_unpack && self.at(TokenKind::FatArrow) {
-                    self.error_here("cannot use '=>' with unpacked array item");
-                }
-            }
-
-            let item_span = Span {
-                start: item_start,
-                end: value_expr.span().end,
-            };
-            items.push(ArrayItemExpr {
-                key: key_expr,
-                value: value_expr,
-                unpack: is_unpack,
-                span: item_span,
-            });
-
-            let had_comma = self.eat(TokenKind::Comma);
-            if let Some(end) = self.eat_end_get_end(TokenKind::RParen) {
-                let span = Span {
-                    start: start_pos,
-                    end,
-                };
-                return Some(Expr::ArrayLiteral { items, span });
-            }
-            if had_comma {
-                continue;
-            }
-
-            self.error_and_recover(
-                "expected ',' or ')'",
-                &[
-                    TokenKind::RParen,
-                    TokenKind::Semicolon,
-                    TokenKind::Comma,
-                    TokenKind::RBrace,
-                ],
-            );
-            let end = self
-                .eat_end_get_end(TokenKind::RParen)
-                .unwrap_or(item_span.end);
-            let span = Span {
-                start: start_pos,
-                end,
-            };
-            return Some(Expr::ArrayLiteral { items, span });
-        }
+                end: end_pos,
+            },
+        })
     }
 
     #[inline]
@@ -535,5 +260,137 @@ impl<'src> Parser<'src> {
             expr: Box::new(expr),
             span: Span { start, end },
         })
+    }
+
+    #[inline]
+    fn slice_without_underscores(&self, token: &phynix_lex::Token) -> String {
+        let s = self.slice(token);
+        let mut out = String::with_capacity(s.len());
+        for &b in s.as_bytes() {
+            if b != b'_' {
+                out.push(b as char);
+            }
+        }
+        out
+    }
+
+    fn parse_array_items_until(
+        &mut self,
+        close: TokenKind,
+        default_span: Span,
+    ) -> (Vec<ArrayItemExpr>, u32) {
+        let mut items: Vec<ArrayItemExpr> = Vec::new();
+
+        if let Some(end) = self.eat_end_get_end(close) {
+            return (items, end);
+        }
+
+        loop {
+            let mut key_expr: Option<Expr> = None;
+            let mut is_unpack = false;
+
+            let item_start: u32;
+            let first_expr: Expr;
+
+            if self.at(TokenKind::Ellipsis) {
+                let ell = self.bump();
+                is_unpack = true;
+                item_start = ell.span.start;
+
+                first_expr = self.parse_expr().unwrap_or_else(|| {
+                    self.error_and_recover(
+                        "expected expression after '...'",
+                        &[TokenKind::Comma, close],
+                    );
+                    Expr::Error {
+                        span: self.prev_span().unwrap_or(default_span),
+                    }
+                });
+            } else if self.at(TokenKind::LBracket) {
+                let lb = self.bump();
+                item_start = lb.span.start;
+                first_expr =
+                    self.parse_array_literal_expr_with_default(default_span);
+            } else if self.at(TokenKind::KwArray) {
+                first_expr =
+                    self.parse_array_construct_expr_with_default(default_span);
+                item_start = first_expr.span().start;
+            } else if let Some(first) = self.parse_expr() {
+                item_start = first.span().start;
+                first_expr = first;
+            } else {
+                self.error_and_recover(
+                    "expected array item",
+                    &[TokenKind::Comma, close],
+                );
+                let fake = self.prev_span().unwrap_or(default_span);
+                item_start = fake.start;
+                first_expr = Expr::Error { span: fake };
+            }
+
+            let value_expr: Expr;
+
+            if !is_unpack && self.eat(TokenKind::FatArrow) {
+                key_expr = Some(first_expr);
+
+                if self.at(TokenKind::LBracket) {
+                    let lb = self.bump();
+                    value_expr =
+                        self.parse_array_literal_expr_with_default(lb.span);
+                } else if self.at(TokenKind::KwArray) {
+                    value_expr = self
+                        .parse_array_construct_expr_with_default(default_span);
+                } else if let Some(expr) = self.parse_expr() {
+                    value_expr = expr;
+                } else {
+                    self.error_and_recover(
+                        "expected value after '=>' in array item",
+                        &[TokenKind::Comma, close],
+                    );
+                    let fake = self.prev_span().unwrap_or(default_span);
+                    value_expr = Expr::Error { span: fake };
+                }
+            } else {
+                value_expr = first_expr;
+                if is_unpack && self.at(TokenKind::FatArrow) {
+                    self.error_here("cannot use '=>' with unpacked array item");
+                }
+            }
+
+            let item_end = value_expr.span().end;
+            items.push(ArrayItemExpr {
+                key: key_expr,
+                value: value_expr,
+                unpack: is_unpack,
+                span: Span {
+                    start: item_start,
+                    end: item_end,
+                },
+            });
+
+            let had_comma = self.eat(TokenKind::Comma);
+
+            if self.eat(close) {
+                let end_pos = self.prev_span().unwrap().end;
+                return (items, end_pos);
+            }
+
+            if had_comma {
+                continue;
+            }
+
+            self.error_and_recover(
+                "expected ',' or closing bracket after array item",
+                &[
+                    close,
+                    TokenKind::Semicolon,
+                    TokenKind::Comma,
+                    TokenKind::RBrace,
+                ],
+            );
+
+            let end_pos = self.eat_end_get_end(close).unwrap_or(item_end);
+            return (items, end_pos);
+        }
     }
 }
