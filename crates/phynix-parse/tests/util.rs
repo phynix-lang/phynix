@@ -1,7 +1,7 @@
 use phynix_core::diagnostics::Diagnostic;
 use phynix_core::{LanguageKind, Strictness};
 use phynix_lex::lex;
-use phynix_parse::ast::{Script, Stmt};
+use phynix_parse::ast::{Block, Expr, Script, Stmt};
 use phynix_parse::parser::Parser;
 
 pub fn parse_ok(src: &str) -> Script {
@@ -26,36 +26,43 @@ pub fn parse(src: &str) -> (Script, Vec<Diagnostic>) {
     .parse_script()
 }
 
-pub fn first_stmt(script: &Script) -> &Stmt {
-    script.items.first().expect("expected at least 1 stmt")
-}
-
-pub fn assert_is_if(stmt: &Stmt) {
-    match stmt {
-        Stmt::If { .. } => {},
-        other => panic!("expected Stmt::If, got: {other:#?}"),
-    }
-}
-
-pub fn assert_else_has_n_items(stmt: &Stmt, n: usize) {
-    match stmt {
-        Stmt::If { else_block, .. } => {
-            let b = else_block.as_ref().expect("expected else_block");
-            assert_eq!(
-                b.items.len(),
-                n,
-                "else_block items mismatch, else_block: {:#?}",
-                b
-            );
-        },
-        other => panic!("expected Stmt::If, got: {other:#?}"),
-    }
-}
-
-pub fn assert_no_diags(diags: &[Diagnostic]) {
-    assert!(
-        diags.is_empty(),
-        "expected no diagnostics, got:\n{:#?}",
-        diags
+pub fn assert_single_stmt(script: &Script) -> &Stmt {
+    assert_eq!(
+        script.items.len(),
+        1,
+        "expected exactly 1 top-level stmt, script: {:#?}",
+        script
     );
+    &script.items[0]
+}
+
+pub fn assert_if_stmt(
+    stmt: &Stmt,
+) -> (&Expr, &Block, &Vec<(Expr, Block)>, Option<&Block>) {
+    match stmt {
+        Stmt::If {
+            cond,
+            then_block,
+            else_if_blocks,
+            else_block,
+            ..
+        } => (cond, then_block, else_if_blocks, else_block.as_ref()),
+        other => panic!("expected Stmt::If, got: {other:#?}"),
+    }
+}
+
+pub fn assert_block_len(block: &Block, n: usize, label: &str) {
+    assert_eq!(
+        block.items.len(),
+        n,
+        "{label} block items mismatch (expected {n}), block: {:#?}",
+        block
+    );
+}
+
+pub fn assert_echo_stmt(stmt: &Stmt) -> &Vec<Expr> {
+    match stmt {
+        Stmt::Echo { exprs, .. } => exprs,
+        other => panic!("expected Stmt::Echo, got: {other:#?}"),
+    }
 }
