@@ -14,6 +14,7 @@ mod r#if;
 mod interface_decl;
 mod label;
 mod namespace;
+mod print;
 mod r#return;
 mod switch;
 mod throw;
@@ -124,6 +125,10 @@ impl<'src> Parser<'src> {
 
         if self.at(TokenKind::KwNamespace) {
             return self.parse_namespace_stmt();
+        }
+
+        if self.at(TokenKind::KwPrint) {
+            return self.parse_print_stmt();
         }
 
         if self.at(TokenKind::KwReturn) {
