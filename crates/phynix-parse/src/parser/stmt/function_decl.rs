@@ -166,12 +166,8 @@ impl<'src> Parser<'src> {
 
         let (maybe_type, mut last_end) = self.parse_param_type_prefix();
 
-        if self.eat(TokenKind::Amp) {
-            last_end = self.prev_span().unwrap().end;
-        }
-        if self.eat(TokenKind::Ellipsis) {
-            last_end = self.prev_span().unwrap().end;
-        }
+        self.eat_and_update_end(TokenKind::Amp, &mut last_end);
+        self.eat_and_update_end(TokenKind::Ellipsis, &mut last_end);
 
         let name_ident = if self.at(TokenKind::VarIdent) {
             let token = self.bump();
@@ -358,7 +354,10 @@ impl<'src> Parser<'src> {
         let k0 = *self.nth_kind(0);
         let looks_like_type = matches!(
             k0,
-            TokenKind::Ident | TokenKind::Backslash | TokenKind::KwArray
+            TokenKind::Ident
+                | TokenKind::Backslash
+                | TokenKind::KwArray
+                | TokenKind::KwCallable
         );
 
         if !looks_like_type {
@@ -366,14 +365,8 @@ impl<'src> Parser<'src> {
             return (None, here);
         }
 
-        let first_qn = if self.at(TokenKind::KwArray) {
-            let token = self.bump();
-            let span = token.span;
-            QualifiedName {
-                absolute: false,
-                parts: vec![Ident { span }],
-                span,
-            }
+        let first_qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
+            qn
         } else {
             match self
                 .parse_qualified_name("expected type before parameter name")
@@ -447,14 +440,8 @@ impl<'src> Parser<'src> {
             last_end = self.prev_span().unwrap().end;
         }
 
-        let first_qn = if self.at(TokenKind::KwArray) {
-            let token = self.bump();
-            let span = token.span;
-            QualifiedName {
-                absolute: false,
-                parts: vec![Ident { span }],
-                span,
-            }
+        let first_qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
+            qn
         } else {
             match self.parse_qualified_name("expected return type after ':'") {
                 Some(qn) => qn,
@@ -527,14 +514,9 @@ impl<'src> Parser<'src> {
             let before = self.pos;
 
             if self.eat(TokenKind::Pipe) {
-                let next_qn = if self.at(TokenKind::KwArray) {
-                    let token = self.bump();
-                    let span = token.span;
-                    Some(QualifiedName {
-                        absolute: false,
-                        parts: vec![Ident { span }],
-                        span,
-                    })
+                let next_qn = if let Some(qn) = self.try_parse_builtin_type_qn()
+                {
+                    Some(qn)
                 } else {
                     self.parse_qualified_name("expected type after '|'")
                 };
@@ -551,17 +533,12 @@ impl<'src> Parser<'src> {
                     TokenKind::Ident
                         | TokenKind::Backslash
                         | TokenKind::KwArray
+                        | TokenKind::KwCallable
                 )
             {
                 let _amp_token = self.bump();
-                let qn = if self.at(TokenKind::KwArray) {
-                    let token = self.bump();
-                    let span = token.span;
-                    Some(QualifiedName {
-                        absolute: false,
-                        parts: vec![Ident { span }],
-                        span,
-                    })
+                let qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
+                    Some(qn)
                 } else {
                     self.parse_qualified_name("expected type after '&'")
                 };
@@ -582,5 +559,19 @@ impl<'src> Parser<'src> {
         }
 
         (saw_union, saw_inter)
+    }
+
+    #[inline]
+    fn try_parse_builtin_type_qn(&mut self) -> Option<QualifiedName> {
+        if !(self.at(TokenKind::KwArray) || self.at(TokenKind::KwCallable)) {
+            return None;
+        }
+        let token = self.bump();
+        let span = token.span;
+        Some(QualifiedName {
+            absolute: false,
+            parts: vec![Ident { span }],
+            span,
+        })
     }
 }

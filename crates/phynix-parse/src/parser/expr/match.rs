@@ -113,9 +113,7 @@ impl<'src> Parser<'src> {
             };
 
             let mut arm_end = arm_expr.span().end;
-            if self.eat(TokenKind::Comma) {
-                arm_end = self.prev_span().unwrap().end;
-            }
+            self.eat_and_update_end(TokenKind::Comma, &mut arm_end);
 
             arms.push(MatchArm {
                 patterns,

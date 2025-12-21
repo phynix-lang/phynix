@@ -96,4 +96,18 @@ impl<'src> Parser<'src> {
             .or_else(|| self.prev_span().map(|s| s.end))
             .unwrap_or(fallback)
     }
+
+    #[inline]
+    pub(crate) fn eat_and_update_end(
+        &mut self,
+        k: TokenKind,
+        last_end: &mut u32,
+    ) -> bool {
+        if self.eat(k) {
+            *last_end = self.prev_span().unwrap().end;
+            true
+        } else {
+            false
+        }
+    }
 }
