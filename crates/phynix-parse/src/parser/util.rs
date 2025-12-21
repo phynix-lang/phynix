@@ -1,6 +1,6 @@
 use crate::ast::{ClassFlags, QualifiedName};
 use crate::parser::Parser;
-use phynix_lex::TokenKind;
+use phynix_lex::{Token, TokenKind};
 
 impl<'src> Parser<'src> {
     pub(super) fn consume_brace_body(&mut self, first_lbrace_end: u32) -> u32 {
@@ -83,5 +83,17 @@ impl<'src> Parser<'src> {
         }
 
         (interfaces, last_end)
+    }
+
+    #[inline(always)]
+    pub(crate) fn end_pos_or(
+        &self,
+        token_opt: Option<&Token>,
+        fallback: u32,
+    ) -> u32 {
+        token_opt
+            .map(|t| t.span.end)
+            .or_else(|| self.prev_span().map(|s| s.end))
+            .unwrap_or(fallback)
     }
 }

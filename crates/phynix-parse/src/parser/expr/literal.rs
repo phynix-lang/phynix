@@ -498,10 +498,7 @@ impl<'src> Parser<'src> {
 
         let rp =
             self.expect(TokenKind::RParen, "expected ')' after isset(...)");
-        let end = rp
-            .map(|t| t.span.end)
-            .or_else(|| self.prev_span().map(|s| s.end))
-            .unwrap_or(kw.span.end);
+        let end = self.end_pos_or(rp, kw.span.end);
 
         Some(Expr::Isset {
             exprs,
@@ -532,10 +529,7 @@ impl<'src> Parser<'src> {
 
         let rp =
             self.expect(TokenKind::RParen, "expected ')' after empty(...)");
-        let end = rp
-            .map(|t| t.span.end)
-            .or_else(|| self.prev_span().map(|s| s.end))
-            .unwrap_or(expr.span().end);
+        let end = self.end_pos_or(rp, expr.span().end);
 
         Some(Expr::Empty {
             expr: Box::new(expr),

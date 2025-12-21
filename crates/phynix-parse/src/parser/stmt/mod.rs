@@ -19,6 +19,7 @@ mod switch;
 mod throw;
 mod trait_decl;
 mod try_catch;
+mod unset;
 mod use_decl;
 mod varlike;
 
@@ -139,6 +140,10 @@ impl<'src> Parser<'src> {
 
         if self.at(TokenKind::KwTry) {
             return self.parse_try_catch_stmt();
+        }
+
+        if self.at(TokenKind::KwUnset) {
+            return self.parse_unset_stmt();
         }
 
         if self.at(TokenKind::KwUse) {

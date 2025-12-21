@@ -181,6 +181,11 @@ pub enum Stmt {
     Global {
         span: Span,
     },
+
+    Unset {
+        exprs: Vec<Expr>,
+        span: Span,
+    },
 }
 
 #[derive(Debug)]
@@ -227,6 +232,7 @@ impl Spanned for Stmt {
             | Stmt::Throw { span, .. }
             | Stmt::Trait { span, .. }
             | Stmt::Try { span, .. }
+            | Stmt::Unset { span, .. }
             | Stmt::Use { span, .. }
             | Stmt::VarDecl { span, .. }
             | Stmt::While { span, .. } => *span,
