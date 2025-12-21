@@ -201,6 +201,7 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwArray
                 | TokenKind::KwAs
                 | TokenKind::KwBreak
+                | TokenKind::KwCallable
                 | TokenKind::KwCase
                 | TokenKind::KwCatch
                 | TokenKind::KwClass
@@ -214,6 +215,7 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwEcho
                 | TokenKind::KwElse
                 | TokenKind::KwElseIf
+                | TokenKind::KwEmpty
                 | TokenKind::KwEndDeclare
                 | TokenKind::KwEndFor
                 | TokenKind::KwEndForeach
@@ -221,6 +223,7 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwEndSwitch
                 | TokenKind::KwEndWhile
                 | TokenKind::KwEnum
+                | TokenKind::KwEval
                 | TokenKind::KwExit
                 | TokenKind::KwExtends
                 | TokenKind::KwFinal
@@ -237,11 +240,16 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwInclude
                 | TokenKind::KwIncludeOnce
                 | TokenKind::KwInstanceof
+                | TokenKind::KwInsteadof
                 | TokenKind::KwInterface
+                | TokenKind::KwIsset
+                | TokenKind::KwList
                 | TokenKind::KwMatch
                 | TokenKind::KwNamespace
                 | TokenKind::KwNew
                 | TokenKind::KwOr
+                | TokenKind::KwParent
+                | TokenKind::KwPrint
                 | TokenKind::KwPrivate
                 | TokenKind::KwProtected
                 | TokenKind::KwPublic
@@ -249,12 +257,15 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwRequire
                 | TokenKind::KwRequireOnce
                 | TokenKind::KwReturn
+                | TokenKind::KwSelf
                 | TokenKind::KwStatic
                 | TokenKind::KwSwitch
                 | TokenKind::KwThrow
                 | TokenKind::KwTrait
                 | TokenKind::KwTry
+                | TokenKind::KwUnset
                 | TokenKind::KwUse
+                | TokenKind::KwVar
                 | TokenKind::KwWhile
                 | TokenKind::KwXor
                 | TokenKind::KwYield
