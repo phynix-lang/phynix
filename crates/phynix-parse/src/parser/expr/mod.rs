@@ -2,6 +2,7 @@ mod binop;
 mod call;
 mod closure;
 mod include;
+mod list;
 mod literal;
 mod r#match;
 mod new;
@@ -95,6 +96,10 @@ impl<'src> Parser<'src> {
 
         if self.at(TokenKind::KwEmpty) {
             return self.parse_empty_expr();
+        }
+
+        if self.at(TokenKind::KwList) {
+            return self.parse_list_destructure_expr();
         }
 
         if self.at(TokenKind::Ident) {

@@ -334,6 +334,12 @@ pub enum Expr {
         span: Span,
     },
 
+    /// list($a, $b) = ...
+    ListDestructure {
+        items: Vec<ListItemExpr>,
+        span: Span,
+    },
+
     Error {
         span: Span,
     },
@@ -367,6 +373,7 @@ impl Spanned for Expr {
             | Expr::InstanceOf { span, .. }
             | Expr::IntLiteral { span, .. }
             | Expr::Isset { span, .. }
+            | Expr::ListDestructure { span, .. }
             | Expr::Match { span, .. }
             | Expr::MethodCall { span, .. }
             | Expr::NameRef { span, .. }
@@ -502,5 +509,12 @@ pub struct Arg {
     pub name: Option<Ident>,
     pub unpack: bool,
     pub expr: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct ListItemExpr {
+    pub key: Option<Expr>,
+    pub value: Option<Expr>,
     pub span: Span,
 }
