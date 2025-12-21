@@ -89,6 +89,14 @@ impl<'src> Parser<'src> {
             return Some(Expr::ConstFetch { name: qn, span });
         }
 
+        if self.at(TokenKind::KwIsset) {
+            return self.parse_isset_expr();
+        }
+
+        if self.at(TokenKind::KwEmpty) {
+            return self.parse_empty_expr();
+        }
+
         if self.at(TokenKind::Ident) {
             if self.at_any(&[
                 TokenKind::KwFor,

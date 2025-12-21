@@ -245,6 +245,18 @@ pub enum Expr {
         span: Span,
     },
 
+    /// isset($a, $b, ...)
+    Isset {
+        exprs: Vec<Expr>,
+        span: Span,
+    },
+
+    /// empty($a)
+    Empty {
+        expr: Box<Expr>,
+        span: Span,
+    },
+
     /// yield $x / yield $k => $v
     Yield {
         key: Option<Box<Expr>>,
@@ -346,6 +358,7 @@ impl Spanned for Expr {
             | Expr::ConstFetch { span, .. }
             | Expr::DynamicMethodCall { span, .. }
             | Expr::DynamicPropertyFetch { span, .. }
+            | Expr::Empty { span, .. }
             | Expr::Error { span, .. }
             | Expr::Exit { span, .. }
             | Expr::FloatLiteral { span, .. }
@@ -353,6 +366,7 @@ impl Spanned for Expr {
             | Expr::Include { span, .. }
             | Expr::InstanceOf { span, .. }
             | Expr::IntLiteral { span, .. }
+            | Expr::Isset { span, .. }
             | Expr::Match { span, .. }
             | Expr::MethodCall { span, .. }
             | Expr::NameRef { span, .. }

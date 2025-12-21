@@ -456,4 +456,90 @@ impl<'src> Parser<'src> {
             None
         }
     }
+
+    pub(crate) fn parse_isset_expr(&mut self) -> Option<Expr> {
+        debug_assert!(self.at(TokenKind::KwIsset));
+
+        let kw = self.bump();
+        let start = kw.span.start;
+
+        let _lp = self.expect(TokenKind::LParen, "expected '(' after 'isset'");
+
+        let mut exprs: Vec<Expr> = Vec::new();
+
+        if self.eat(TokenKind::RParen) {
+            let end = self.prev_span().unwrap().end;
+            self.error_span(Span { start, end }, "expected variable");
+            return Some(Expr::Isset {
+                exprs,
+                span: Span { start, end },
+            });
+        }
+
+        loop {
+            if let Some(e) = self.parse_expr() {
+                exprs.push(e);
+            } else {
+                self.error_and_recover(
+                    "expected expression in isset(...)",
+                    &[TokenKind::Comma, TokenKind::RParen],
+                );
+            }
+
+            if self.eat(TokenKind::Comma) {
+                if self.at(TokenKind::RParen) {
+                    break;
+                }
+                continue;
+            }
+
+            break;
+        }
+
+        let rp =
+            self.expect(TokenKind::RParen, "expected ')' after isset(...)");
+        let end = rp
+            .map(|t| t.span.end)
+            .or_else(|| self.prev_span().map(|s| s.end))
+            .unwrap_or(kw.span.end);
+
+        Some(Expr::Isset {
+            exprs,
+            span: Span { start, end },
+        })
+    }
+
+    pub(crate) fn parse_empty_expr(&mut self) -> Option<Expr> {
+        debug_assert!(self.at(TokenKind::KwEmpty));
+
+        let kw = self.bump();
+        let start = kw.span.start;
+
+        let _lp = self.expect(TokenKind::LParen, "expected '(' after 'empty'");
+
+        let expr = match self.parse_expr() {
+            Some(e) => e,
+            None => {
+                self.error_and_recover(
+                    "expected expression in empty(...)",
+                    &[TokenKind::RParen],
+                );
+                Expr::Error {
+                    span: self.prev_span().unwrap_or(kw.span),
+                }
+            },
+        };
+
+        let rp =
+            self.expect(TokenKind::RParen, "expected ')' after empty(...)");
+        let end = rp
+            .map(|t| t.span.end)
+            .or_else(|| self.prev_span().map(|s| s.end))
+            .unwrap_or(expr.span().end);
+
+        Some(Expr::Empty {
+            expr: Box::new(expr),
+            span: Span { start, end },
+        })
+    }
 }
