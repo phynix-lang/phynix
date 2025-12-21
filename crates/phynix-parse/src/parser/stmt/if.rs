@@ -196,11 +196,41 @@ impl<'src> Parser<'src> {
                     "expected ')' after elseif condition",
                 );
                 if !self.eat(TokenKind::Colon) {
-                    let block = parse_branch_block(
-                        self,
-                        &mut last_end,
-                        "expected '{' after elseif(...)",
-                    );
+                    // Non-colon form:
+                    // - elseif (...) { ... }
+                    // - elseif (...) stmt;
+                    let block = if self.at(TokenKind::LBrace) {
+                        parse_branch_block(
+                            self,
+                            &mut last_end,
+                            "expected '{' after elseif(...)",
+                        )
+                    } else {
+                        // Single-statement elseif-body: elseif (cond) stmt;
+                        if let Some(stmt) = self.parse_stmt() {
+                            let span = Span {
+                                start: stmt.span().start,
+                                end: stmt.span().end,
+                            };
+                            last_end = span.end;
+                            Block {
+                                items: vec![stmt],
+                                span,
+                            }
+                        } else {
+                            self.error_here(
+                                "expected statement after elseif(...)",
+                            );
+                            Block {
+                                items: Vec::new(),
+                                span: Span {
+                                    start: last_end,
+                                    end: last_end,
+                                },
+                            }
+                        }
+                    };
+
                     if let Some(c) = cond_opt {
                         else_if_blocks.push((c, block));
                     }
