@@ -5,7 +5,7 @@ use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_empty_stmt(&mut self) -> Option<Stmt> {
-        let semi_span = self.prev_span().unwrap_or(Span { start: 0, end: 0 });
+        let semi_span = self.prev_span().unwrap_or(Span::EMPTY);
 
         Some(Stmt::Noop { span: semi_span })
     }

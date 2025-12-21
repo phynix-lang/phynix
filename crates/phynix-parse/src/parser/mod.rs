@@ -335,7 +335,7 @@ impl<'src> Parser<'src> {
         let span = if !self.eof() {
             self.span()
         } else {
-            self.prev_span().unwrap_or(Span { start: 0, end: 0 })
+            self.prev_span().unwrap_or(Span::EMPTY)
         };
         self.error_span(span, msg);
     }

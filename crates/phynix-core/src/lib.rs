@@ -25,6 +25,10 @@ pub struct Span {
     pub end: u32,
 }
 
+impl Span {
+    pub const EMPTY: Span = Span { start: 0, end: 0 };
+}
+
 pub trait Spanned {
     fn span(&self) -> Span;
 }

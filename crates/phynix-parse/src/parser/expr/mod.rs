@@ -716,9 +716,7 @@ impl<'src> Parser<'src> {
                             return Some(base);
                         }
 
-                        let span = self
-                            .prev_span()
-                            .unwrap_or(Span { start: 0, end: 0 });
+                        let span = self.prev_span().unwrap_or(Span::EMPTY);
                         Expr::Error { span }
                     },
                 };
