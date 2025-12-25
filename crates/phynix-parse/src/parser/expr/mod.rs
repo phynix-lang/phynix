@@ -7,6 +7,7 @@ mod literal;
 mod r#match;
 mod new;
 mod parens;
+mod print;
 mod variable;
 mod yield_like;
 
@@ -100,6 +101,10 @@ impl<'src> Parser<'src> {
 
         if self.at(TokenKind::KwList) {
             return self.parse_list_destructure_expr();
+        }
+
+        if self.at(TokenKind::KwPrint) {
+            return self.parse_print_expr();
         }
 
         if self.at_any(&[TokenKind::KwSelf, TokenKind::KwParent]) {

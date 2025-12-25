@@ -186,11 +186,6 @@ pub enum Stmt {
         exprs: Vec<Expr>,
         span: Span,
     },
-
-    Print {
-        expr: Expr,
-        span: Span,
-    },
 }
 
 #[derive(Debug)]
@@ -232,7 +227,6 @@ impl Spanned for Stmt {
             | Stmt::Namespace { span, .. }
             | Stmt::New { span, .. }
             | Stmt::Noop { span, .. }
-            | Stmt::Print { span, .. }
             | Stmt::Return { span, .. }
             | Stmt::Switch { span, .. }
             | Stmt::Throw { span, .. }

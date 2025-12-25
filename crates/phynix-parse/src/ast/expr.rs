@@ -340,6 +340,12 @@ pub enum Expr {
         span: Span,
     },
 
+    /// print $x
+    Print {
+        expr: Box<Expr>,
+        span: Span,
+    },
+
     Error {
         span: Span,
     },
@@ -387,6 +393,7 @@ impl Spanned for Expr {
             | Expr::PostfixInc { span, .. }
             | Expr::PrefixDec { span, .. }
             | Expr::PrefixInc { span, .. }
+            | Expr::Print { span, .. }
             | Expr::PropertyFetch { span, .. }
             | Expr::ShellExec { span, .. }
             | Expr::StaticCall { span, .. }
