@@ -1002,7 +1002,7 @@ impl<'src> Parser<'src> {
     }
 
     #[inline]
-    fn bump_ident_like(&mut self) -> Option<&'src Token> {
+    pub(crate) fn bump_ident_like(&mut self) -> Option<&'src Token> {
         match self.kind() {
             TokenKind::Ident => Some(self.bump()),
             k if self.is_ident_like_kw(k) => Some(self.bump()),

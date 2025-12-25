@@ -286,8 +286,8 @@ impl<'src> Parser<'src> {
     }
 
     pub fn expect_ident(&mut self, msg: &'static str) -> Option<&'src Token> {
-        if matches!(self.kind(), TokenKind::Ident) {
-            Some(self.bump())
+        if let Some(tok) = self.bump_ident_like() {
+            Some(tok)
         } else {
             self.error_here(msg);
             None
