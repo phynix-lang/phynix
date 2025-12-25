@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/phynix-bench",
     "crates/phynix-cli",
     "crates/phynix-core",
     "crates/phynix-lex",

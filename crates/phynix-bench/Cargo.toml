@@ -1,0 +1,15 @@
+[package]
+name = "phynix-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+criterion = "0.8"
+
+[dependencies]
+phynix-lex = { path = "../phynix-lex" }
+phynix-core = { path = "../phynix-core" }
+
+[[bench]]
+name = "lexer"
+harness = false
