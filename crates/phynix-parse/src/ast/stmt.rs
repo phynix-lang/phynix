@@ -1,5 +1,9 @@
-use crate::ast::{ClassNameRef, Expr, Ident, QualifiedName, TypeRef};
+use crate::ast::{
+    CatchClause, ClassFlags, ClassMember, ClassNameRef, Expr, Ident, Param,
+    QualifiedName, SwitchCase, TypeRef, UseImport,
+};
 use phynix_core::{Span, Spanned};
+
 #[derive(Debug)]
 pub enum Stmt {
     HtmlChunk {
@@ -194,14 +198,6 @@ pub struct Block {
     pub span: Span,
 }
 
-#[derive(Debug)]
-pub struct Param {
-    pub name: Ident,
-    pub type_annotation: Option<TypeRef>,
-    pub default: Option<Expr>,
-    pub span: Span,
-}
-
 impl Spanned for Stmt {
     fn span(&self) -> Span {
         match self {
@@ -238,67 +234,4 @@ impl Spanned for Stmt {
             | Stmt::While { span, .. } => *span,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum ClassMember {
-    Property {
-        name: Ident,
-        type_annotation: Option<TypeRef>,
-        default: Option<Expr>,
-        span: Span,
-    },
-
-    Method {
-        name: Ident,
-        params: Vec<Param>,
-        return_type: Option<TypeRef>,
-        body: Option<Block>,
-        span: Span,
-    },
-
-    Const {
-        name: Ident,
-        value: Expr,
-        span: Span,
-    },
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum UseKind {
-    Normal,
-    Function,
-    Const,
-}
-
-#[derive(Debug)]
-pub struct UseImport {
-    pub kind: UseKind,
-    pub full_name: QualifiedName,
-    pub alias: Option<Ident>,
-    pub span: Span,
-}
-
-bitflags::bitflags! {
-    #[derive(Debug)]
-    pub struct ClassFlags: u8 {
-        const ABSTRACT = 0b0000_0001;
-        const FINAL    = 0b0000_0010;
-        const READONLY = 0b0000_0100;
-    }
-}
-
-#[derive(Debug)]
-pub struct CatchClause {
-    pub exception_types: Vec<TypeRef>,
-    pub var: Option<Ident>,
-    pub body: Block,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct SwitchCase {
-    pub condition: Option<Expr>,
-    pub body: Block,
-    pub span: Span,
 }

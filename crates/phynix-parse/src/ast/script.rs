@@ -1,5 +1,6 @@
 use crate::ast::Stmt;
 use phynix_core::{Span, Spanned};
+
 #[derive(Debug)]
 pub struct Script {
     pub items: Vec<Stmt>,

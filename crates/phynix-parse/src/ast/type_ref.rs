@@ -1,5 +1,6 @@
 use crate::ast::QualifiedName;
 use phynix_core::{Span, Spanned};
+
 #[derive(Debug)]
 pub enum BuiltInType {
     Int,

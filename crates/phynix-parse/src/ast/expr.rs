@@ -1,7 +1,10 @@
 use crate::ast::{
-    Block, ClassNameRef, Ident, Param, QualifiedName, StringStyle, TypeRef,
+    Arg, ArrayItemExpr, BinOpKind, Block, CastKind, ClassNameRef, ClosureUse,
+    Ident, IncludeKind, ListItemExpr, MatchArm, Param, QualifiedName,
+    StringStyle, TypeRef, UnOpKind,
 };
 use phynix_core::{Span, Spanned};
+
 #[derive(Debug)]
 pub enum Expr {
     /// 42, -7
@@ -415,120 +418,4 @@ impl Spanned for Expr {
             | Expr::YieldFrom { span, .. } => *span,
         }
     }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum BinOpKind {
-    /// Arithmetic
-    Add, // +
-    Sub, // -
-    Mul, // *
-    Div, // /
-    Mod, // %
-    Pow, // **
-
-    /// String concatenation
-    Concat, // .
-
-    /// Logical
-    AndAnd, // &&
-    OrOr,         // ||
-    NullCoalesce, // ??
-    Or,           // or
-    Xor,          // xor
-    And,          // and
-
-    /// Bitwise / Shifts
-    BitAnd, // &
-    BitOr,  // |
-    BitXor, // ^
-    Shl,    // <<
-    Shr,    // >>
-
-    /// Comparison
-    CmpEqStrict, // ===
-    CmpNeStrict, // !==
-    CmpEq,       // ==
-    CmpNe,       // !=
-
-    /// Ordering
-    CmpLt, // <
-    CmpLe, // <=
-    CmpGt, // >
-    CmpGe, // >=
-
-    /// Spaceship
-    CmpSpaceship, // <=>
-}
-
-#[derive(Debug)]
-pub enum UnOpKind {
-    Neg,      // -$x
-    Not,      // !$x
-    BitNot,   // ~$x
-    Suppress, // @$x
-    Ref,      // &$x
-    Plus,     // +$x
-}
-
-#[derive(Debug)]
-pub enum CastKind {
-    Int,
-    Float,
-    String,
-    Array,
-    Object,
-    Bool,
-    Unset,
-}
-
-#[derive(Debug)]
-pub enum IncludeKind {
-    Include,
-    IncludeOnce,
-    Require,
-    RequireOnce,
-}
-
-#[derive(Debug)]
-pub struct ArrayItemExpr {
-    pub key: Option<Expr>,
-    pub value: Expr,
-    pub unpack: bool,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct ClosureUse {
-    pub by_ref: bool,
-    pub name: Ident,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct MatchArm {
-    pub patterns: Vec<MatchPattern>,
-    pub expr: Expr,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub enum MatchPattern {
-    Default { span: Span },
-    Expr(Expr),
-}
-
-#[derive(Debug)]
-pub struct Arg {
-    pub name: Option<Ident>,
-    pub unpack: bool,
-    pub expr: Expr,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct ListItemExpr {
-    pub key: Option<Expr>,
-    pub value: Option<Expr>,
-    pub span: Span,
 }
