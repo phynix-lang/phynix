@@ -1,4 +1,4 @@
-use memchr::memchr;
+use memchr::{memchr, memmem};
 use phynix_core::{LanguageKind, Span, Strictness};
 use thiserror::Error;
 
@@ -991,20 +991,10 @@ impl<'src> Lexer<'src> {
 
     // Returns index after closing */ or None
     fn scan_block_comment_end(&mut self) -> Option<()> {
-        let mut p = self.i;
-        while p + 1 < self.src.len() {
-            if let Some(star) = memchr(b'*', &self.src[p..]) {
-                p += star + 1;
-                if self.src.get(p) == Some(&b'/') {
-                    p += 1;
-                    self.i = p;
-                    return Some(());
-                }
-            } else {
-                break;
-            }
-        }
-        None
+        let hay = &self.src[self.i..];
+        let rel = memmem::find(hay, b"*/")?;
+        self.i += rel + 2;
+        Some(())
     }
 }
 
