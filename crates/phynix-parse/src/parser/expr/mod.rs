@@ -102,6 +102,20 @@ impl<'src> Parser<'src> {
             return self.parse_list_destructure_expr();
         }
 
+        if self.at_any(&[TokenKind::KwSelf, TokenKind::KwParent]) {
+            let tok = self.bump();
+            let span = tok.span;
+
+            let ident = Ident { span };
+            let qn = QualifiedName {
+                absolute: false,
+                parts: vec![ident],
+                span,
+            };
+
+            return Some(Expr::ConstFetch { name: qn, span });
+        }
+
         if self.at(TokenKind::Ident) {
             if self.at_any(&[
                 TokenKind::KwFor,
