@@ -395,6 +395,27 @@ impl<'src> Parser<'src> {
             });
         }
 
+        if let Some((ck, sp)) = self.try_parse_cast_prefix() {
+            let inner = match self.parse_prefix_term() {
+                Some(e) => e,
+                None => {
+                    self.error_here("expected expression after cast");
+                    return Some(Expr::Error { span: sp });
+                },
+            };
+
+            let span = Span {
+                start: sp.start,
+                end: inner.span().end,
+            };
+
+            return Some(Expr::Cast {
+                kind: ck,
+                expr: Box::new(inner),
+                span,
+            });
+        }
+
         if self.at(TokenKind::KwThrow) {
             let throw_token = self.bump();
             let rhs = match self.parse_prefix_term() {
