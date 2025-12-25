@@ -1,6 +1,7 @@
 mod binop;
 mod call;
 mod closure;
+mod eval;
 mod include;
 mod list;
 mod literal;
@@ -119,6 +120,10 @@ impl<'src> Parser<'src> {
             };
 
             return Some(Expr::ConstFetch { name: qn, span });
+        }
+
+        if self.at(TokenKind::KwEval) {
+            return self.parse_eval_expr();
         }
 
         if self.at(TokenKind::Ident) {

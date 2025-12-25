@@ -346,6 +346,12 @@ pub enum Expr {
         span: Span,
     },
 
+    /// eval($code)
+    Eval {
+        expr: Box<Expr>,
+        span: Span,
+    },
+
     Error {
         span: Span,
     },
@@ -372,6 +378,7 @@ impl Spanned for Expr {
             | Expr::DynamicPropertyFetch { span, .. }
             | Expr::Empty { span, .. }
             | Expr::Error { span, .. }
+            | Expr::Eval { span, .. }
             | Expr::Exit { span, .. }
             | Expr::FloatLiteral { span, .. }
             | Expr::FunctionCall { span, .. }
