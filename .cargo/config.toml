@@ -1,2 +1,8 @@
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-Ctarget-cpu=native"]
+
+[alias]
+bench-lex = "bench -p phynix-bench -- lex_into/"
+bench-lex-allocations = "bench -p phynix-bench -- lex_into_allocations/"
+test-all = "test --workspace --all-features"
+test-lex = "test -p phynix-lex --all-features"
