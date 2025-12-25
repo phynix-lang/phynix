@@ -108,45 +108,19 @@ impl<'src> Parser<'src> {
                 break;
             }
 
-            let op_token = self.bump();
-
-            let mut right = match self.parse_prefix_term() {
-                Some(expr) => expr,
-                None => {
-                    let err_span = op_token.span;
-                    self.error_and_recover(
-                        "expected expression after operator",
-                        &[
-                            TokenKind::Semicolon,
-                            TokenKind::Comma,
-                            TokenKind::RParen,
-                            TokenKind::RBracket,
-                            TokenKind::RBrace,
-                        ],
-                    );
-                    let span = Span {
-                        start: left.span().start,
-                        end: err_span.end,
-                    };
-                    return Some(Expr::BinaryOp {
-                        op: op_kind,
-                        left: Box::new(left),
-                        right: Box::new(Expr::Error { span: err_span }),
-                        span,
-                    });
-                },
+            let (l, r) = match self.bump_binop_and_parse_right(left, op_kind) {
+                Ok(v) => v,
+                Err(e) => return Some(e),
             };
 
-            right = self.maybe_recurse_higher_prec(right, prec);
-
             let span = Span {
-                start: left.span().start,
-                end: right.span().end,
+                start: l.span().start,
+                end: r.span().end,
             };
             left = Expr::BinaryOp {
                 op: op_kind,
-                left: Box::new(left),
-                right: Box::new(right),
+                left: Box::new(l),
+                right: Box::new(r),
                 span,
             };
         }
@@ -168,50 +142,65 @@ impl<'src> Parser<'src> {
                 break;
             }
 
-            let op_token = self.bump();
-
-            let mut right = match self.parse_prefix_term() {
-                Some(expr) => expr,
-                None => {
-                    let err_span = op_token.span;
-                    self.error_and_recover(
-                        "expected expression after operator",
-                        &[
-                            TokenKind::Semicolon,
-                            TokenKind::Comma,
-                            TokenKind::RParen,
-                            TokenKind::RBracket,
-                            TokenKind::RBrace,
-                        ],
-                    );
-                    let span = Span {
-                        start: left.span().start,
-                        end: err_span.end,
-                    };
-                    return Expr::BinaryOp {
-                        op: op_kind,
-                        left: Box::new(left),
-                        right: Box::new(Expr::Error { span: err_span }),
-                        span,
-                    };
-                },
+            let (l, r) = match self.bump_binop_and_parse_right(left, op_kind) {
+                Ok(v) => v,
+                Err(e) => return e,
             };
 
-            right = self.maybe_recurse_higher_prec(right, prec);
-
             let span = Span {
-                start: left.span().start,
-                end: right.span().end,
+                start: l.span().start,
+                end: r.span().end,
             };
             left = Expr::BinaryOp {
                 op: op_kind,
-                left: Box::new(left),
-                right: Box::new(right),
+                left: Box::new(l),
+                right: Box::new(r),
                 span,
             };
         }
 
         left
+    }
+
+    #[inline]
+    fn bump_binop_and_parse_right(
+        &mut self,
+        left: Expr,
+        op_kind: BinOpKind,
+    ) -> Result<(Expr, Expr), Expr> {
+        let op_token = self.bump();
+
+        let mut right = match self.parse_prefix_term() {
+            Some(expr) => expr,
+            None => {
+                let err_span = op_token.span;
+                self.error_and_recover(
+                    "expected expression after operator",
+                    &[
+                        TokenKind::Semicolon,
+                        TokenKind::Comma,
+                        TokenKind::RParen,
+                        TokenKind::RBracket,
+                        TokenKind::RBrace,
+                    ],
+                );
+                let span = Span {
+                    start: left.span().start,
+                    end: err_span.end,
+                };
+                return Err(Expr::BinaryOp {
+                    op: op_kind,
+                    left: Box::new(left),
+                    right: Box::new(Expr::Error { span: err_span }),
+                    span,
+                });
+            },
+        };
+
+        let prec = precedence_of(op_kind);
+        right = self.maybe_recurse_higher_prec(right, prec);
+
+        Ok((left, right))
     }
 
     #[inline]
