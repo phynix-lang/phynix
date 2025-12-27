@@ -313,26 +313,23 @@ impl<'src> Lexer<'src> {
     fn run(&mut self) -> Result<(), LexError> {
         while self.i < self.src.len() {
             self.start = self.i;
-            let b = self.peek();
 
             if !self.in_php {
                 let s = self.src;
-                let mut p = self.i;
-                let mut found = None;
-                while p + 1 < s.len() {
-                    if s[p] == b'<' && s[p + 1] == b'?' {
-                        found = Some(p);
-                        break;
-                    }
-                    p += 1;
-                }
-                if let Some(off) = found {
+                if let Some((off, kind, len)) = find_next_php_open(s, self.i) {
                     if off > self.i {
                         self.start = self.i;
                         self.i = off;
                         self.push(TokenKind::HtmlChunk, self.span());
                         continue;
                     }
+
+                    // Open tag starts here
+                    self.start = self.i;
+                    self.i = off + len;
+                    self.push(kind, self.span());
+                    self.in_php = true;
+                    continue;
                 } else {
                     self.start = self.i;
                     self.i = s.len();
@@ -341,46 +338,9 @@ impl<'src> Lexer<'src> {
                 }
             }
 
-            if !self.in_php && b == b'<' && self.peek2() == Some(b'?') {
-                self.bump();
-                self.bump();
+            let b = self.peek();
 
-                // Open/Close tags
-                let s = self.src;
-                let i = self.i;
-                if i < s.len() {
-                    match s[i] {
-                        b'=' => {
-                            self.i = i + 1;
-                            self.push(TokenKind::EchoOpen, self.span());
-                            self.in_php = true;
-                            continue;
-                        },
-                        b'p' => {
-                            if i + 3 <= s.len() && &s[i..i + 3] == b"php" {
-                                self.i = i + 3;
-                                self.push(TokenKind::PhpOpen, self.span());
-                                self.in_php = true;
-                                continue;
-                            }
-                            if i + 4 <= s.len() && &s[i..i + 4] == b"phxt" {
-                                self.i = i + 4;
-                                self.push(TokenKind::PhxtOpen, self.span());
-                                self.in_php = true;
-                                continue;
-                            }
-                            if i + 3 <= s.len() && &s[i..i + 3] == b"phx" {
-                                self.i = i + 3;
-                                self.push(TokenKind::PhxOpen, self.span());
-                                self.in_php = true;
-                                continue;
-                            }
-                        },
-                        _ => {},
-                    }
-                }
-                self.i = self.start;
-            }
+            // PHP Close Tag
             if self.in_php && b == b'?' && self.peek2() == Some(b'>') {
                 self.bump();
                 self.bump();
@@ -996,6 +956,69 @@ impl<'src> Lexer<'src> {
         self.i += rel + 2;
         Some(())
     }
+}
+
+#[inline]
+fn find_next_php_open(
+    s: &[u8],
+    from: usize,
+) -> Option<(usize, TokenKind, usize)> {
+    let mut p = from;
+
+    while p < s.len() {
+        // Find next '<'
+        let rel = memchr(b'<', &s[p..])?;
+        p += rel;
+
+        // Need "<?"
+        if p + 1 >= s.len() || s[p + 1] != b'?' {
+            p += 1;
+            continue;
+        }
+
+        // Third byte decides most cases
+        let b2 = s.get(p + 2).copied().unwrap_or(0);
+
+        // <?=
+        if b2 == b'=' {
+            return Some((p, TokenKind::EchoOpen, 3));
+        }
+
+        if b2 == b'p' {
+            // <?php
+            if p + 4 < s.len()
+                && s[p + 2] == b'p'
+                && s[p + 3] == b'h'
+                && s[p + 4] == b'p'
+            {
+                return Some((p, TokenKind::PhpOpen, 5));
+            }
+
+            // <?phxt (must be before <?phx)
+            if p + 5 < s.len()
+                && s[p + 2] == b'p'
+                && s[p + 3] == b'h'
+                && s[p + 4] == b'x'
+                && s[p + 5] == b't'
+            {
+                return Some((p, TokenKind::PhxtOpen, 6));
+            }
+
+            // <?phx
+            if p + 4 < s.len()
+                && s[p + 2] == b'p'
+                && s[p + 3] == b'h'
+                && s[p + 4] == b'x'
+            {
+                return Some((p, TokenKind::PhxOpen, 5));
+            }
+        }
+
+        // Skip "<?"
+        p += 2;
+    }
+
+    None
 }
 
 static IS_WS: [bool; 256] = {
