@@ -1,5 +1,6 @@
 use crate::ast::{Block, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -18,7 +19,13 @@ impl<'src> Parser<'src> {
             None
         };
 
-        if self.eat(TokenKind::Semicolon) {
+        let err_pos = ns_name_opt
+            .as_ref()
+            .map(|n| n.span.end)
+            .unwrap_or(ns_token.span.end);
+
+        if self.at(TokenKind::Semicolon) {
+            self.bump();
             let (body_block, body_end) = self.parse_namespace_body_until_next();
             let span = Span {
                 start: ns_start,
@@ -31,9 +38,8 @@ impl<'src> Parser<'src> {
             });
         }
 
-        if let Some(lb) =
-            self.expect(TokenKind::LBrace, "expected '{' after namespace name")
-        {
+        if self.at(TokenKind::LBrace) {
+            let lb = self.bump();
             let (body_block, body_end) =
                 match self.parse_block_after_lbrace(lb.span.start) {
                     Some((block, end)) => (block, end),
@@ -61,6 +67,15 @@ impl<'src> Parser<'src> {
                 span,
             });
         }
+
+        self.error_span(
+            ParseDiagnosticCode::ExpectedToken,
+            Span {
+                start: err_pos,
+                end: err_pos,
+            },
+            "expected ';' or '{' after namespace name",
+        );
 
         self.recover_to_any(&[
             TokenKind::LBrace,
