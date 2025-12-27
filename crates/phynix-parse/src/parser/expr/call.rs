@@ -1,6 +1,7 @@
 use crate::ast::{Arg, ClassNameRef, Expr, Ident, QualifiedName};
 use crate::parser::expr::SYNC_POSTFIX;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::{Token, TokenKind};
 
@@ -256,6 +257,7 @@ impl<'src> Parser<'src> {
 
                     if saw_named {
                         self.error_here(
+                            ParseDiagnosticCode::VariadicAfterNamedArg,
                             "variadic unpack not allowed after named arguments",
                         );
                     }
@@ -321,7 +323,7 @@ impl<'src> Parser<'src> {
                     }
                 } else if let Some(e) = self.parse_expr() {
                     if saw_named {
-                        self.error_here("positional argument not allowed after named arguments");
+                        self.error_here(ParseDiagnosticCode::PositionalAfterNamedArg, "positional argument not allowed after named arguments");
                     }
                     let span = Span {
                         start: arg_start,

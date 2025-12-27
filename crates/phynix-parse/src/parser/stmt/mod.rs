@@ -25,6 +25,7 @@ mod varlike;
 
 use crate::ast::{Block, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -197,12 +198,16 @@ impl<'src> Parser<'src> {
                             last_end = expr.span().end;
                         } else {
                             self.error_here(
+                                ParseDiagnosticCode::ExpectedExpression,
                                 "expected expression after '=' in static declaration",
                             );
                         }
                     }
                 } else {
-                    self.error_here("expected variable after 'static'");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        "expected variable after 'static'",
+                    );
                     break;
                 }
 

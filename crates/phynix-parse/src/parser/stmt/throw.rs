@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -15,7 +16,10 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             Some(expr)
         } else {
-            self.error_here("expected expression after 'throw'");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression after 'throw'",
+            );
             None
         };
 

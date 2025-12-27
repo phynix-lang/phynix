@@ -4,7 +4,8 @@ mod stmt;
 mod util;
 
 use crate::ast::*;
-use phynix_core::diagnostics::{Diagnostic, Severity};
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
 use phynix_core::{LanguageKind, Span, Spanned, Strictness};
 use phynix_lex::{Token, TokenKind};
 
@@ -280,7 +281,7 @@ impl<'src> Parser<'src> {
         if self.at(kind) {
             Some(self.bump())
         } else {
-            self.error_here(msg);
+            self.error_here(ParseDiagnosticCode::ExpectedToken, msg);
             None
         }
     }
@@ -289,7 +290,7 @@ impl<'src> Parser<'src> {
         if let Some(tok) = self.bump_ident_like() {
             Some(tok)
         } else {
-            self.error_here(msg);
+            self.error_here(ParseDiagnosticCode::ExpectedIdent, msg);
             None
         }
     }
@@ -331,27 +332,29 @@ impl<'src> Parser<'src> {
     }
 
     #[cold]
-    pub fn error_here(&mut self, msg: &'static str) {
+    pub fn error_here(&mut self, code: ParseDiagnosticCode, msg: &'static str) {
         let span = if !self.eof() {
             self.span()
         } else {
             self.prev_span().unwrap_or(Span::EMPTY)
         };
-        self.error_span(span, msg);
+        self.error_span(code, span, msg);
     }
 
     #[cold]
-    pub fn error_span(&mut self, span: Span, message: &'static str) {
-        self.diagnostics.push(Diagnostic {
-            span,
-            severity: Severity::Error,
-            message: message.into(),
-        });
+    pub fn error_span(
+        &mut self,
+        code: ParseDiagnosticCode,
+        span: Span,
+        message: &'static str,
+    ) {
+        self.diagnostics
+            .push(Diagnostic::error(code, span, message));
     }
 
     #[cold]
     pub fn recover_one_token(&mut self, message: &'static str) {
-        self.error_here(message);
+        self.error_here(ParseDiagnosticCode::UnexpectedToken, message);
         if !self.eof() {
             let _ = self.advance();
         }
@@ -369,7 +372,7 @@ impl<'src> Parser<'src> {
         message: &'static str,
         sync: &[TokenKind],
     ) {
-        self.error_here(message);
+        self.error_here(ParseDiagnosticCode::UnexpectedToken, message);
         self.recover_to_any(sync);
     }
 }

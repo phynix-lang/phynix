@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Ident};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -157,7 +158,10 @@ impl<'src> Parser<'src> {
                 end = self.prev_span().unwrap().end;
             } else {
                 if consumed == 0 {
-                    self.error_here("expected class/interface name");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        "expected class/interface name",
+                    );
                 }
                 break;
             }

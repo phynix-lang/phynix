@@ -1,5 +1,6 @@
 use crate::ast::{ArrayItemExpr, Expr, StringStyle};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -31,7 +32,11 @@ impl<'src> Parser<'src> {
                 span: token.span,
             }),
             Err(_) => {
-                self.error_span(token.span, "Invalid integer literal");
+                self.error_span(
+                    ParseDiagnosticCode::InvalidIntLiteral,
+                    token.span,
+                    "Invalid integer literal",
+                );
                 Some(Expr::IntLiteral {
                     value: 0,
                     span: token.span,
@@ -53,7 +58,11 @@ impl<'src> Parser<'src> {
                 span: token.span,
             }),
             Err(_) => {
-                self.error_span(token.span, "Invalid float literal");
+                self.error_span(
+                    ParseDiagnosticCode::InvalidFloatLiteral,
+                    token.span,
+                    "Invalid float literal",
+                );
                 Some(Expr::FloatLiteral {
                     value: 0.0,
                     span: token.span,
@@ -194,7 +203,11 @@ impl<'src> Parser<'src> {
 
         if self.eat(TokenKind::RParen) {
             let end = self.prev_span().unwrap().end;
-            self.error_span(Span { start, end }, "expected variable");
+            self.error_span(
+                ParseDiagnosticCode::ExpectedIdent,
+                Span { start, end },
+                "expected variable",
+            );
             return Some(Expr::Isset {
                 exprs,
                 span: Span { start, end },
@@ -353,7 +366,10 @@ impl<'src> Parser<'src> {
             } else {
                 value_expr = first_expr;
                 if is_unpack && self.at(TokenKind::FatArrow) {
-                    self.error_here("cannot use '=>' with unpacked array item");
+                    self.error_here(
+                        ParseDiagnosticCode::UnpackedArrayItemWithFatArrow,
+                        "cannot use '=>' with unpacked array item",
+                    );
                 }
             }
 

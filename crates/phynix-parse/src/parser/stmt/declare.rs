@@ -1,5 +1,6 @@
 use crate::ast::Stmt;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -34,14 +35,20 @@ impl<'src> Parser<'src> {
                 (Some(text), span)
             },
             _ => {
-                self.error_here("expected directive name in declare(...)");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedIdent,
+                    "expected directive name in declare(...)",
+                );
                 (None, lparen_token.unwrap().span)
             },
         };
 
         let saw_eq = self.eat(TokenKind::Eq);
         if !saw_eq {
-            self.error_here("expected '=' after directive name");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedToken,
+                "expected '=' after directive name",
+            );
         }
 
         let mut int_text_opt: Option<&str> = None;
@@ -52,7 +59,10 @@ impl<'src> Parser<'src> {
                 int_text_opt = Some(self.slice(&int_token));
             } else {
                 if saw_eq {
-                    self.error_here("expected integer literal after '='");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedIntLiteral,
+                        "expected integer literal after '='",
+                    );
                 }
             }
         }

@@ -1,5 +1,6 @@
 use crate::ast::Expr;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -19,7 +20,10 @@ impl<'src> Parser<'src> {
                 last_end = expr.span().end;
                 expr
             } else {
-                self.error_here("expected expression after 'yield from'");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    "expected expression after 'yield from'",
+                );
                 Expr::Error {
                     span: Span {
                         start: last_end,
@@ -41,7 +45,10 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             expr
         } else {
-            self.error_here("expected expression after 'yield'");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression after 'yield'",
+            );
             return Some(Expr::Yield {
                 key: None,
                 value: Box::new(Expr::Error {

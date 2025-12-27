@@ -1,5 +1,6 @@
 use crate::ast::{Block, Expr, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -21,7 +22,10 @@ impl<'src> Parser<'src> {
         if let Some(cond_expr) = cond_expr_opt.as_ref() {
             last_end = cond_expr.span().end;
         } else {
-            self.error_here("expected condition expression after '('");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected condition expression after '('",
+            );
         }
 
         let rparen_token =
@@ -30,43 +34,6 @@ impl<'src> Parser<'src> {
         if let Some(rp) = rparen_token.as_ref() {
             last_end = rp.span.end;
         }
-
-        let parse_branch_block = |this: &mut Parser<'src>,
-                                  last_end_ref: &mut u32,
-                                  err_msg: &'static str|
-         -> Block {
-            let lbrace_token = this.expect(TokenKind::LBrace, err_msg);
-
-            if let Some(lb) = lbrace_token.as_ref() {
-                return match this.parse_block_after_lbrace(lb.span.start) {
-                    Some((block, block_end)) => {
-                        *last_end_ref = block_end;
-                        block
-                    },
-                    None => {
-                        let fake_span = Span {
-                            start: lb.span.start,
-                            end: lb.span.start,
-                        };
-                        *last_end_ref = fake_span.end;
-                        Block {
-                            items: Vec::new(),
-                            span: fake_span,
-                        }
-                    },
-                };
-            }
-
-            this.error_here(err_msg);
-            let fake_span = Span {
-                start: *last_end_ref,
-                end: *last_end_ref,
-            };
-            Block {
-                items: Vec::new(),
-                span: fake_span,
-            }
-        };
 
         if self.eat(TokenKind::Colon) {
             let (then_block, mut last_end2) = self.parse_until_any(&[
@@ -143,9 +110,9 @@ impl<'src> Parser<'src> {
             last_end = end;
             block
         } else if have_rparen && self.at(TokenKind::LBrace) {
-            parse_branch_block(
-                self,
+            self.parse_branch_block(
                 &mut last_end,
+                ParseDiagnosticCode::ExpectedToken,
                 "expected '{' after if(...)",
             )
         } else if have_rparen {
@@ -200,9 +167,9 @@ impl<'src> Parser<'src> {
                     // - elseif (...) { ... }
                     // - elseif (...) stmt;
                     let block = if self.at(TokenKind::LBrace) {
-                        parse_branch_block(
-                            self,
+                        self.parse_branch_block(
                             &mut last_end,
+                            ParseDiagnosticCode::ExpectedToken,
                             "expected '{' after elseif(...)",
                         )
                     } else {
@@ -219,6 +186,7 @@ impl<'src> Parser<'src> {
                             }
                         } else {
                             self.error_here(
+                                ParseDiagnosticCode::ExpectedStatement,
                                 "expected statement after elseif(...)",
                             );
                             Block {
@@ -265,7 +233,10 @@ impl<'src> Parser<'src> {
                         block_end = if_stmt.span().end;
                         items.push(if_stmt);
                     } else {
-                        self.error_here("expected 'if' after 'else'");
+                        self.error_here(
+                            ParseDiagnosticCode::ExpectedIfAfterElse,
+                            "expected 'if' after 'else'",
+                        );
                     }
 
                     let block = Block {
@@ -279,9 +250,9 @@ impl<'src> Parser<'src> {
                     last_end = block_end;
                     else_block_opt = Some(block);
                 } else if self.at(TokenKind::LBrace) {
-                    let block = parse_branch_block(
-                        self,
+                    let block = self.parse_branch_block(
                         &mut last_end,
+                        ParseDiagnosticCode::ExpectedToken,
                         "expected '{' after 'else'",
                     );
                     else_block_opt = Some(block);
@@ -298,7 +269,10 @@ impl<'src> Parser<'src> {
                             span,
                         });
                     } else {
-                        self.error_here("expected statement after 'else'");
+                        self.error_here(
+                            ParseDiagnosticCode::ExpectedStatement,
+                            "expected statement after 'else'",
+                        );
                     }
                 }
 
@@ -321,5 +295,44 @@ impl<'src> Parser<'src> {
             else_block: else_block_opt,
             span: full_span,
         })
+    }
+
+    fn parse_branch_block(
+        &mut self,
+        last_end: &mut u32,
+        code: ParseDiagnosticCode,
+        err_msg: &'static str,
+    ) -> Block {
+        let lbrace_token = self.expect(TokenKind::LBrace, err_msg);
+
+        if let Some(lb) = lbrace_token.as_ref() {
+            return match self.parse_block_after_lbrace(lb.span.start) {
+                Some((block, block_end)) => {
+                    *last_end = block_end;
+                    block
+                },
+                None => {
+                    let fake_span = Span {
+                        start: lb.span.start,
+                        end: lb.span.start,
+                    };
+                    *last_end = fake_span.end;
+                    Block {
+                        items: Vec::new(),
+                        span: fake_span,
+                    }
+                },
+            };
+        }
+
+        self.error_here(code, err_msg);
+        let fake_span = Span {
+            start: *last_end,
+            end: *last_end,
+        };
+        Block {
+            items: Vec::new(),
+            span: fake_span,
+        }
     }
 }

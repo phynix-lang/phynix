@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Stmt, SwitchCase};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -21,7 +22,10 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             expr
         } else {
-            self.error_here("expected expression in switch condition");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression in switch condition",
+            );
             Expr::Error {
                 span: Span {
                     start: last_end,
@@ -69,7 +73,10 @@ impl<'src> Parser<'src> {
             }
             let _ = self.eat(TokenKind::Semicolon);
         } else {
-            self.error_here("expected '{' or ':' after switch condition");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedToken,
+                "expected '{' or ':' after switch condition",
+            );
         }
 
         let span = Span {
@@ -105,7 +112,10 @@ impl<'src> Parser<'src> {
                             Some(expr)
                         },
                         None => {
-                            self.error_here("expected expression after 'case'");
+                            self.error_here(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                "expected expression after 'case'",
+                            );
                             None
                         },
                     }
@@ -115,6 +125,7 @@ impl<'src> Parser<'src> {
                     && !self.eat(TokenKind::Semicolon)
                 {
                     self.error_here(
+                        ParseDiagnosticCode::ExpectedToken,
                         "expected ':' or ';' after case/default label",
                     );
                 }
@@ -147,7 +158,10 @@ impl<'src> Parser<'src> {
                     last.body.items.push(stmt);
                     last.body.span.end = *last_end;
                 } else {
-                    self.error_here("expected 'case' or 'default' in switch");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedCaseOrDefaultInSwitch,
+                        "expected 'case' or 'default' in switch",
+                    );
                 }
             } else {
                 if self.pos == before {

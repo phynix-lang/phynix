@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -23,12 +24,18 @@ impl<'src> Parser<'src> {
                 if let Some(next) = self.parse_expr() {
                     exprs.push(next);
                 } else {
-                    self.error_here("expected expression after ',' in echo");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after ',' in echo",
+                    );
                     break;
                 }
             }
         } else {
-            self.error_here("expected expression after 'echo'");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression after 'echo'",
+            );
         }
 
         self.skip_trivia_and_cache();
@@ -70,7 +77,10 @@ impl<'src> Parser<'src> {
         let expr = match self.parse_expr() {
             Some(e) => e,
             None => {
-                self.error_here("expected expression after '<?='");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    "expected expression after '<?='",
+                );
                 let fake = self.prev_span().unwrap_or(open);
                 Expr::Error { span: fake }
             },

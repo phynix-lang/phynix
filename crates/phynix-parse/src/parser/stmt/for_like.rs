@@ -1,5 +1,6 @@
 use crate::ast::{Block, Expr, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -103,7 +104,10 @@ impl<'src> Parser<'src> {
 
         while self.eat(TokenKind::Comma) {
             if self.at_any(terminators) {
-                self.error_here("expected expression after ',' in for clause");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    "expected expression after ',' in for clause",
+                );
                 break;
             }
 
@@ -133,7 +137,10 @@ impl<'src> Parser<'src> {
 
         self.expect(TokenKind::LParen, "expected '(' after 'foreach'");
         let expr = self.parse_expr().or_else(|| {
-            self.error_here("expected expression after '('");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression after '('",
+            );
             None
         });
 
@@ -141,7 +148,10 @@ impl<'src> Parser<'src> {
             let as_token = self.bump();
             last_end = as_token.span.end;
         } else {
-            self.error_here("expected 'as' in foreach");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedToken,
+                "expected 'as' in foreach",
+            );
         }
 
         let key_or_val = self.parse_expr();
@@ -276,7 +286,10 @@ impl<'src> Parser<'src> {
                 }
             } else {
                 self.pos = before;
-                self.error_here("expected statement after 'do'");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedStatement,
+                    "expected statement after 'do'",
+                );
                 let span = Span {
                     start: last_end,
                     end: last_end,
@@ -289,7 +302,10 @@ impl<'src> Parser<'src> {
         };
 
         if !self.at(TokenKind::KwWhile) {
-            self.error_here("expected 'while' after do-statement body");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedToken,
+                "expected 'while' after do-statement body",
+            );
         } else {
             let w = self.bump();
             last_end = w.span.end;
@@ -305,7 +321,10 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             expr
         } else {
-            self.error_here("expected condition expression in do-while");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected condition expression in do-while",
+            );
             Expr::Error {
                 span: Span {
                     start: last_end,

@@ -1,5 +1,6 @@
 use crate::ast::Stmt;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -19,7 +20,10 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             Some(expr)
         } else {
-            self.error_here("expected expression after 'return'");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedExpression,
+                "expected expression after 'return'",
+            );
             reported = true;
             None
         };
@@ -28,7 +32,10 @@ impl<'src> Parser<'src> {
             self.prev_span().unwrap()
         } else {
             if !reported {
-                self.error_here("expected ';' after return");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedToken,
+                    "expected ';' after return",
+                );
             }
             self.recover_to_any(&[
                 TokenKind::Semicolon,

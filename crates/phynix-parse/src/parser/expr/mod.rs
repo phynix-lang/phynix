@@ -16,6 +16,7 @@ use crate::ast::{
     BinOpKind, CastKind, ClassNameRef, Expr, Ident, QualifiedName, UnOpKind,
 };
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::{Token, TokenKind};
 
@@ -362,7 +363,10 @@ impl<'src> Parser<'src> {
             let inner = match self.parse_prefix_term() {
                 Some(e) => e,
                 None => {
-                    self.error_here("expected expression after '++'");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after '++'",
+                    );
                     return Some(Expr::Error { span: op_span });
                 },
             };
@@ -384,7 +388,10 @@ impl<'src> Parser<'src> {
             let inner = match self.parse_prefix_term() {
                 Some(e) => e,
                 None => {
-                    self.error_here("expected expression after '--'");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after '--'",
+                    );
                     return Some(Expr::Error { span: op_span });
                 },
             };
@@ -404,7 +411,10 @@ impl<'src> Parser<'src> {
             let inner = match self.parse_prefix_term() {
                 Some(e) => e,
                 None => {
-                    self.error_here("expected expression after cast");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after cast",
+                    );
                     return Some(Expr::Error { span: sp });
                 },
             };
@@ -426,7 +436,10 @@ impl<'src> Parser<'src> {
             let rhs = match self.parse_prefix_term() {
                 Some(e) => e,
                 None => {
-                    self.error_here("expected expression after 'throw'");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after 'throw'",
+                    );
                     let span = throw_token.span;
                     return Some(Expr::Error { span });
                 },

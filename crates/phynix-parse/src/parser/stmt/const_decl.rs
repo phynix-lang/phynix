@@ -1,5 +1,6 @@
 use crate::ast::{Ident, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -39,7 +40,10 @@ impl<'src> Parser<'src> {
         };
 
         if !self.eat(TokenKind::Eq) {
-            self.error_here("expected '=' after constant name");
+            self.error_here(
+                ParseDiagnosticCode::ExpectedToken,
+                "expected '=' after constant name",
+            );
 
             let span = Span {
                 start: start_pos,

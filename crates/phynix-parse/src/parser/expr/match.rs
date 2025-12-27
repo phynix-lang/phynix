@@ -1,5 +1,6 @@
 use crate::ast::{Expr, MatchArm, MatchPattern};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::{Span, Spanned};
 use phynix_lex::TokenKind;
 
@@ -22,7 +23,10 @@ impl<'src> Parser<'src> {
                 expr
             },
             None => {
-                self.error_here("expected expression after '('");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    "expected expression after '('",
+                );
                 Expr::Error {
                     span: match_token.span,
                 }
@@ -82,7 +86,7 @@ impl<'src> Parser<'src> {
                         last_end = expr.span().end;
                         patterns.push(MatchPattern::Expr(expr));
                     } else {
-                        self.error_here("expected expression after ',' in match pattern list");
+                        self.error_here(ParseDiagnosticCode::ExpectedExpression, "expected expression after ',' in match pattern list");
                         break;
                     }
                 }
@@ -102,7 +106,10 @@ impl<'src> Parser<'src> {
                     expr
                 },
                 None => {
-                    self.error_here("expected expression after '=>'");
+                    self.error_here(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        "expected expression after '=>'",
+                    );
                     Expr::Error {
                         span: self.prev_span().unwrap_or(Span {
                             start,

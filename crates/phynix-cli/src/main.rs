@@ -183,7 +183,6 @@ fn print_diagnostics(text: &&str, parse_result: &ParseResult) {
         let label = match diag.severity {
             Severity::Error => "Error",
             Severity::Warning => "Warning",
-            Severity::Legacy => "Legacy",
             Severity::Info => "Info",
         };
         println!(

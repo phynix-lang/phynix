@@ -1,5 +1,6 @@
 use crate::ast::Stmt;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::Span;
 use phynix_lex::TokenKind;
 
@@ -25,7 +26,10 @@ impl<'src> Parser<'src> {
                     );
                 }
             } else {
-                self.error_here("expected variable after 'global'");
+                self.error_here(
+                    ParseDiagnosticCode::ExpectedIdent,
+                    "expected variable after 'global'",
+                );
                 self.recover_to_any(&[TokenKind::Semicolon]);
                 break;
             }

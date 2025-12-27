@@ -1,5 +1,6 @@
 use crate::ast::{Expr, Stmt};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::Span;
 use phynix_lex::TokenKind;
 
@@ -17,6 +18,7 @@ impl<'src> Parser<'src> {
         if self.eat(TokenKind::RParen) {
             let end = self.prev_span().unwrap().end;
             self.error_span(
+                ParseDiagnosticCode::ExpectedAtLeastOneArgument,
                 Span { start, end },
                 "unset() expects at least 1 argument",
             );
