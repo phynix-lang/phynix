@@ -1,8 +1,9 @@
 use crate::ast::{Expr, Stmt};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
-use phynix_core::Span;
-use phynix_lex::TokenKind;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
+use phynix_core::{Span, Spanned};
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_unset_stmt(&mut self) -> Option<Stmt> {
@@ -10,35 +11,44 @@ impl<'src> Parser<'src> {
 
         let kw = self.bump();
         let start = kw.span.start;
+        let mut last_end = kw.span.end;
 
-        let _lp = self.expect(TokenKind::LParen, "expected '(' after 'unset'");
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
 
         let mut exprs: Vec<Expr> = Vec::new();
 
-        if self.eat(TokenKind::RParen) {
-            let end = self.prev_span().unwrap().end;
-            self.error_span(
+        if let Some(rp) = self.expect(TokenKind::RParen) {
+            last_end = rp.span.end;
+            self.error(Diagnostic::error_from_code(
                 ParseDiagnosticCode::ExpectedAtLeastOneArgument,
-                Span { start, end },
-                "unset() expects at least 1 argument",
-            );
+                Span {
+                    start,
+                    end: last_end,
+                },
+            ));
 
-            let semi = self
-                .expect(TokenKind::Semicolon, "expected ';' after unset(...)");
-            let end = semi.map(|t| t.span.end).unwrap_or(end);
+            self.expect_or_err(TokenKind::Semicolon, &mut last_end);
 
             return Some(Stmt::Unset {
                 exprs,
-                span: Span { start, end },
+                span: Span {
+                    start,
+                    end: last_end,
+                },
             });
         }
 
         loop {
+            let loop_start = self.current_span().start;
             if let Some(e) = self.parse_expr() {
+                last_end = e.span().end;
                 exprs.push(e);
             } else {
                 self.error_and_recover(
-                    "expected expression in unset(...)",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        Span::at(loop_start),
+                    ),
                     &[TokenKind::Comma, TokenKind::RParen],
                 );
             }
@@ -53,16 +63,15 @@ impl<'src> Parser<'src> {
             break;
         }
 
-        let _rp =
-            self.expect(TokenKind::RParen, "expected ')' after unset(...)");
-
-        let semi =
-            self.expect(TokenKind::Semicolon, "expected ';' after unset(...)");
-        let end = self.end_pos_or(semi, kw.span.end);
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
+        self.expect_or_err(TokenKind::Semicolon, &mut last_end);
 
         Some(Stmt::Unset {
             exprs,
-            span: Span { start, end },
+            span: Span {
+                start,
+                end: last_end,
+            },
         })
     }
 }

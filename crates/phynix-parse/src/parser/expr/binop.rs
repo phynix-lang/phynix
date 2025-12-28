@@ -1,7 +1,9 @@
 use crate::ast::{BinOpKind, Expr, QualifiedName};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_binop_prec_impl(
@@ -13,13 +15,12 @@ impl<'src> Parser<'src> {
         loop {
             if self.at(TokenKind::KwInstanceof) {
                 let instanceof_token = self.bump();
+                let last_end = instanceof_token.span.end;
 
                 let class_qn = if self.at(TokenKind::Backslash)
                     || self.at(TokenKind::Ident)
                 {
-                    match self.parse_qualified_name(
-                        "expected class after 'instanceof'",
-                    ) {
+                    match self.parse_qualified_name() {
                         Some(qn) => qn,
                         None => {
                             self.recover_to_any(&[
@@ -29,12 +30,9 @@ impl<'src> Parser<'src> {
                                 TokenKind::RBracket,
                             ]);
 
-                            let fake = self
-                                .prev_span()
-                                .unwrap_or(instanceof_token.span);
                             let span = Span {
                                 start: left.span().start,
-                                end: fake.end,
+                                end: last_end,
                             };
 
                             left = Expr::InstanceOf {
@@ -60,7 +58,10 @@ impl<'src> Parser<'src> {
                     }
                 } else {
                     self.error_and_recover(
-                        "expected class after 'instanceof'",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedIdent,
+                            Span::at(last_end),
+                        ),
                         &[
                             TokenKind::Semicolon,
                             TokenKind::Comma,
@@ -69,11 +70,9 @@ impl<'src> Parser<'src> {
                         ],
                     );
 
-                    let fake =
-                        self.prev_span().unwrap_or(instanceof_token.span);
                     let span = Span {
                         start: left.span().start,
-                        end: fake.end,
+                        end: last_end,
                     };
 
                     left = Expr::InstanceOf {
@@ -173,9 +172,12 @@ impl<'src> Parser<'src> {
         let mut right = match self.parse_prefix_term() {
             Some(expr) => expr,
             None => {
-                let err_span = op_token.span;
+                let err_span = Span::at(op_token.span.end);
                 self.error_and_recover(
-                    "expected expression after operator",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        err_span,
+                    ),
                     &[
                         TokenKind::Semicolon,
                         TokenKind::Comma,
@@ -186,7 +188,7 @@ impl<'src> Parser<'src> {
                 );
                 let span = Span {
                     start: left.span().start,
-                    end: err_span.end,
+                    end: op_token.span.end,
                 };
                 return Err(Expr::BinaryOp {
                     op: op_kind,

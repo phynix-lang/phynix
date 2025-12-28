@@ -1,8 +1,9 @@
 use crate::ast::{Block, Expr, Stmt};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_for_stmt(&mut self) -> Option<Stmt> {
@@ -12,54 +13,34 @@ impl<'src> Parser<'src> {
         let start = kw.span.start;
         let mut last_end = kw.span.end;
 
-        if let Some(lp) =
-            self.expect(TokenKind::LParen, "expected '(' after 'for'")
-        {
-            last_end = lp.span.end;
-        }
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
 
         let init = if !self.at(TokenKind::Semicolon) {
             self.parse_for_expr_list(&[TokenKind::Semicolon, TokenKind::RParen])
         } else {
             None
         };
-        if let Some(semi) =
-            self.expect(TokenKind::Semicolon, "expected ';' after for init")
-        {
-            last_end = semi.span.end;
-        }
+        self.expect_or_err(TokenKind::Semicolon, &mut last_end);
 
         let cond = if !self.at(TokenKind::Semicolon) {
             self.parse_for_expr_list(&[TokenKind::Semicolon, TokenKind::RParen])
         } else {
             None
         };
-        if let Some(semi) = self
-            .expect(TokenKind::Semicolon, "expected ';' after for condition")
-        {
-            last_end = semi.span.end;
-        }
+        self.expect_or_err(TokenKind::Semicolon, &mut last_end);
 
         let step = if !self.at(TokenKind::RParen) {
             self.parse_for_expr_list(&[TokenKind::RParen])
         } else {
             None
         };
-        let rp =
-            self.expect(TokenKind::RParen, "expected ')' after for header");
-        if let Some(token) = rp.as_ref() {
-            last_end = token.span.end;
-        }
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         if self.eat(TokenKind::Colon) {
             let (body, end) = self.parse_until_any(&[TokenKind::KwEndFor]);
             last_end = end;
 
-            let end_token =
-                self.expect(TokenKind::KwEndFor, "expected 'endfor'");
-            if let Some(token) = end_token {
-                last_end = token.span.end;
-            }
+            self.expect_or_err(TokenKind::KwEndFor, &mut last_end);
 
             let _ = self.eat(TokenKind::Semicolon);
 
@@ -102,12 +83,13 @@ impl<'src> Parser<'src> {
             None => return None,
         };
 
-        while self.eat(TokenKind::Comma) {
+        while let Some(comma) = self.expect(TokenKind::Comma) {
+            let last_end = comma.span.end;
             if self.at_any(terminators) {
-                self.error_here(
+                self.error(Diagnostic::error_from_code(
                     ParseDiagnosticCode::ExpectedExpression,
-                    "expected expression after ',' in for clause",
-                );
+                    Span::at(last_end),
+                ));
                 break;
             }
 
@@ -117,7 +99,10 @@ impl<'src> Parser<'src> {
                 },
                 None => {
                     self.error_and_recover(
-                        "expected expression after ',' in for clause",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(last_end),
+                        ),
                         terminators,
                     );
                     break;
@@ -135,47 +120,48 @@ impl<'src> Parser<'src> {
         let start = kw.span.start;
         let mut last_end = kw.span.end;
 
-        self.expect(TokenKind::LParen, "expected '(' after 'foreach'");
-        let expr = self.parse_expr().or_else(|| {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedExpression,
-                "expected expression after '('",
-            );
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
+
+        let expr = if self.at(TokenKind::RParen) {
             None
-        });
+        } else {
+            Some(self.parse_expr_or_err(&mut last_end))
+        };
 
         if self.at(TokenKind::KwAs) {
             let as_token = self.bump();
             last_end = as_token.span.end;
         } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedToken,
-                "expected 'as' in foreach",
-            );
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_token(TokenKind::KwAs),
+                Span::at(last_end),
+            ));
         }
 
         let key_or_val = self.parse_expr();
-        let (key, value) = if self.eat(TokenKind::FatArrow) {
+        if let Some(ref e) = key_or_val {
+            last_end = e.span().end;
+        }
+        let (key, value) = if let Some(arrow) = self.expect(TokenKind::FatArrow)
+        {
+            last_end = arrow.span.end;
             let v = self.parse_expr();
+            if let Some(ref e) = v {
+                last_end = e.span().end;
+            }
             (key_or_val, v)
         } else {
             (None, key_or_val)
         };
 
-        let rp =
-            self.expect(TokenKind::RParen, "expected ')' after foreach header");
-        if let Some(token) = rp.as_ref() {
-            last_end = token.span.end;
-        }
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         if self.eat(TokenKind::Colon) {
             let (body, end) = self.parse_until_any(&[TokenKind::KwEndForeach]);
             last_end = end;
-            let end_token =
-                self.expect(TokenKind::KwEndForeach, "expected 'endforeach'");
-            if let Some(token) = end_token {
-                last_end = token.span.end;
-            }
+
+            self.expect_or_err(TokenKind::KwEndForeach, &mut last_end);
+
             let _ = self.eat(TokenKind::Semicolon);
             let span = Span {
                 start,
@@ -213,22 +199,22 @@ impl<'src> Parser<'src> {
         let start = kw.span.start;
         let mut last_end = kw.span.end;
 
-        self.expect(TokenKind::LParen, "expected '(' after 'while'");
-        let cond = self.parse_expr();
-        let rp = self
-            .expect(TokenKind::RParen, "expected ')' after while condition");
-        if let Some(token) = rp.as_ref() {
-            last_end = token.span.end;
-        }
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
+
+        let cond = if self.at(TokenKind::RParen) {
+            None
+        } else {
+            Some(self.parse_expr_or_err(&mut last_end))
+        };
+
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         if self.eat(TokenKind::Colon) {
             let (body, end) = self.parse_until_any(&[TokenKind::KwEndWhile]);
             last_end = end;
-            let end_token =
-                self.expect(TokenKind::KwEndWhile, "expected 'endwhile'");
-            if let Some(token) = end_token {
-                last_end = token.span.end;
-            }
+
+            self.expect_or_err(TokenKind::KwEndWhile, &mut last_end);
+
             let _ = self.eat(TokenKind::Semicolon);
             let span = Span {
                 start,
@@ -254,18 +240,17 @@ impl<'src> Parser<'src> {
         let start = do_token.span.start;
         let mut last_end = do_token.span.end;
 
-        let body_block: Block = if self.eat(TokenKind::LBrace) {
-            let lb = self.prev_span().unwrap();
-            match self.parse_block_after_lbrace(lb.start) {
+        let body_block: Block = if let Some(lb) = self.expect(TokenKind::LBrace)
+        {
+            let lb_start = lb.span.start;
+            last_end = lb.span.end;
+            match self.parse_block_after_lbrace(lb_start) {
                 Some((block, end)) => {
                     last_end = end;
                     block
                 },
                 None => {
-                    let span = Span {
-                        start: lb.start,
-                        end: lb.start,
-                    };
+                    let span = Span::at(lb_start);
                     Block {
                         items: Vec::new(),
                         span,
@@ -286,14 +271,11 @@ impl<'src> Parser<'src> {
                 }
             } else {
                 self.pos = before;
-                self.error_here(
+                self.error(Diagnostic::error_from_code(
                     ParseDiagnosticCode::ExpectedStatement,
-                    "expected statement after 'do'",
-                );
-                let span = Span {
-                    start: last_end,
-                    end: last_end,
-                };
+                    Span::at(last_end),
+                ));
+                let span = Span::at(last_end);
                 Block {
                     items: Vec::new(),
                     span,
@@ -301,50 +283,21 @@ impl<'src> Parser<'src> {
             }
         };
 
-        if !self.at(TokenKind::KwWhile) {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedToken,
-                "expected 'while' after do-statement body",
-            );
-        } else {
-            let w = self.bump();
-            last_end = w.span.end;
-        }
+        self.expect_or_err(TokenKind::KwWhile, &mut last_end);
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
 
-        if let Some(lp) =
-            self.expect(TokenKind::LParen, "expected '(' after 'while'")
-        {
-            last_end = lp.span.end;
-        }
+        let cond = self.parse_expr_or_err(&mut last_end);
 
-        let cond = if let Some(expr) = self.parse_expr() {
-            last_end = expr.span().end;
-            expr
-        } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedExpression,
-                "expected condition expression in do-while",
-            );
-            Expr::Error {
-                span: Span {
-                    start: last_end,
-                    end: last_end,
-                },
-            }
-        };
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
-        if let Some(rp) =
-            self.expect(TokenKind::RParen, "expected ')' to close condition")
-        {
-            last_end = rp.span.end;
-        }
-
-        let semi_span = if let Some(semi) =
-            self.expect(TokenKind::Semicolon, "expected ';' after do-while")
-        {
+        let semi_span = if let Some(semi) = self.expect(TokenKind::Semicolon) {
             semi.span
         } else {
-            self.recover_after_stmt_like(last_end)
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_token(TokenKind::Semicolon),
+                Span::at(last_end),
+            ));
+            Span::at(last_end)
         };
         last_end = semi_span.end;
 
@@ -358,39 +311,25 @@ impl<'src> Parser<'src> {
         })
     }
 
-    #[inline]
-    pub(crate) fn recover_after_stmt_like(&mut self, last_end: u32) -> Span {
-        self.recover_to_any(&[
-            TokenKind::Semicolon,
-            TokenKind::RBrace,
-            TokenKind::Dollar,
-            TokenKind::Ident,
-            TokenKind::AttrOpen,
-        ]);
-        self.prev_span().unwrap_or(Span {
-            start: last_end,
-            end: last_end,
-        })
-    }
-
     fn parse_stmt_block_or_single(
         &mut self,
         start: u32,
         last_end: &mut u32,
     ) -> Block {
-        if self.eat(TokenKind::LBrace) {
-            let lb = self.prev_span().unwrap();
-            if let Some((block, end)) = self.parse_block_after_lbrace(lb.start)
+        if let Some(lb) = self.expect(TokenKind::LBrace) {
+            let lb_start = lb.span.start;
+            *last_end = lb.span.end;
+            if let Some((block, end)) = self.parse_block_after_lbrace(lb_start)
             {
                 *last_end = end;
                 return block;
             }
         }
         let stmt = self.parse_stmt().unwrap_or(Stmt::Noop {
-            span: self.prev_span().unwrap_or(Span {
+            span: Span {
                 start,
                 end: *last_end,
-            }),
+            },
         });
         *last_end = stmt.span().end;
 

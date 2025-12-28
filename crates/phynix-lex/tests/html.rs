@@ -1,5 +1,5 @@
 use crate::util::{assert_kinds_eq_including_trivia, kinds};
-use phynix_lex::TokenKind;
+use phynix_core::token::TokenKind;
 
 mod util;
 

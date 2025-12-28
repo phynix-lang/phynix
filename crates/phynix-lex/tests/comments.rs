@@ -4,7 +4,7 @@ use crate::util::{
     assert_kinds_eq, assert_kinds_eq_including_trivia, kinds,
     kinds_php_prefixed, lex_err_php_prefixed,
 };
-use phynix_lex::TokenKind;
+use phynix_core::token::TokenKind;
 
 #[test]
 fn attr_open_beats_hash_comment() {

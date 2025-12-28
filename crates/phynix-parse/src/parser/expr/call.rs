@@ -2,8 +2,9 @@ use crate::ast::{Arg, ClassNameRef, Expr, Ident, QualifiedName};
 use crate::parser::expr::SYNC_POSTFIX;
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::{Token, TokenKind};
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_identifier_expr(&mut self) -> Option<Expr> {
@@ -25,7 +26,9 @@ impl<'src> Parser<'src> {
             span: qn_span,
         };
 
-        if self.eat(TokenKind::ColCol) {
+        if self.at(TokenKind::ColCol) {
+            let colcol_end = self.current_span().end;
+            self.bump();
             let class_name = ClassNameRef::Qualified(qn);
 
             if self.at(TokenKind::KwClass) {
@@ -58,24 +61,19 @@ impl<'src> Parser<'src> {
                 });
             }
 
-            if self.eat(TokenKind::Dollar) {
-                if self.eat(TokenKind::LBrace) {
-                    let inner = match self.parse_expr() {
-                        Some(e) => e,
-                        None => {
-                            self.error_and_recover(
-                                "expected expression after '::${'",
-                                &[TokenKind::RBrace],
-                            );
-                            Expr::Error {
-                                span: self.prev_span().unwrap_or(qn_span),
-                            }
-                        },
-                    };
-                    let _ = self.expect(
-                        TokenKind::RBrace,
-                        "expected '}' after '::${expr}'",
+            if self.at(TokenKind::Dollar) {
+                let dollar_end = self.current_span().end;
+                self.bump();
+                if self.at(TokenKind::LBrace) {
+                    let lbrace_end = self.current_span().end;
+                    self.bump();
+
+                    let inner = self.parse_braced_expr_or_error(
+                        lbrace_end,
+                        qn_span.start,
+                        &[TokenKind::RBrace, TokenKind::Semicolon],
                     );
+
                     let span = Span {
                         start: qn_span.start,
                         end: inner.span().end,
@@ -87,9 +85,7 @@ impl<'src> Parser<'src> {
                     });
                 }
 
-                if let Some(prop_tok) =
-                    self.expect_ident("expected property after '::$'")
-                {
+                if let Some(prop_tok) = self.expect_ident() {
                     let span = Span {
                         start: qn_span.start,
                         end: prop_tok.span.end,
@@ -104,28 +100,24 @@ impl<'src> Parser<'src> {
                 }
 
                 self.error_and_recover(
-                    "expected property after '::$'",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        Span::at(dollar_end),
+                    ),
                     SYNC_POSTFIX,
                 );
                 return Some(Expr::Error { span: qn_span });
             }
 
-            if self.eat(TokenKind::LBrace) {
-                let inner = match self.parse_expr() {
-                    Some(e) => e,
-                    None => {
-                        self.error_and_recover(
-                            "expected expression after '{' in '::{...}'",
-                            &[TokenKind::RBrace],
-                        );
-                        Expr::Error {
-                            span: self.prev_span().unwrap_or(qn_span),
-                        }
-                    },
-                };
+            if self.at(TokenKind::LBrace) {
+                let lbrace_end = self.current_span().end;
+                self.bump();
 
-                let _ = self
-                    .expect(TokenKind::RBrace, "expected '}' after '::{expr}'");
+                let inner = self.parse_braced_expr_or_error(
+                    lbrace_end,
+                    qn_span.start,
+                    &[TokenKind::RBrace, TokenKind::Semicolon],
+                );
 
                 let method_span = inner.span();
                 return Some(self.build_static_named_member_or_call(
@@ -135,10 +127,7 @@ impl<'src> Parser<'src> {
                 ));
             }
 
-            if let Some(id_tok) = self.expect_ident_like_or_sync(
-                "expected identifier after '::'",
-                SYNC_POSTFIX,
-            ) {
+            if let Some(id_tok) = self.expect_ident() {
                 let id_span = id_tok.span;
                 return Some(self.build_static_named_member_or_call(
                     class_name,
@@ -148,14 +137,24 @@ impl<'src> Parser<'src> {
             }
 
             self.error_and_recover(
-                "expected identifier, 'class', or '$' after '::'",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_one_of([
+                        ParseDiagnosticCode::ExpectedIdent,
+                        ParseDiagnosticCode::expected_tokens([
+                            TokenKind::KwClass,
+                            TokenKind::Dollar,
+                        ]),
+                    ]),
+                    Span::at(colcol_end),
+                ),
                 SYNC_POSTFIX,
             );
             return Some(Expr::Error { span: qn_span });
         }
 
-        if self.eat(TokenKind::LParen) {
-            let lparen_span = self.prev_span().unwrap();
+        if self.at(TokenKind::LParen) {
+            let lp_tok = self.bump();
+            let lparen_span = lp_tok.span;
             let (args, rparen_span) = self.parse_call_arguments(lparen_span);
             let span = Span {
                 start: qn_span.start,
@@ -195,9 +194,9 @@ impl<'src> Parser<'src> {
         method_span: Span,
         qn_start: u32,
     ) -> Expr {
-        if self.eat(TokenKind::LParen) {
-            let lp = self.prev_span().unwrap();
-            let (args, rp) = self.parse_call_arguments(lp);
+        if self.at(TokenKind::LParen) {
+            let lp_tok = self.bump();
+            let (args, rp) = self.parse_call_arguments(lp_tok.span);
             let span = Span {
                 start: qn_start,
                 end: rp.end,
@@ -221,25 +220,13 @@ impl<'src> Parser<'src> {
         }
     }
 
-    #[inline]
-    fn expect_ident_like_or_sync(
-        &mut self,
-        msg: &'static str,
-        sync: &[TokenKind],
-    ) -> Option<&'src Token> {
-        if let Some(token) = self.bump_ident_like() {
-            return Some(token);
-        }
-        self.error_and_recover(msg, sync);
-        None
-    }
-
     pub(super) fn parse_call_arguments(
         &mut self,
         lparen_span: Span,
     ) -> (Vec<Arg>, Span) {
         let mut args: Vec<Arg> = Vec::new();
         let mut saw_named = false;
+        let mut had_error = false;
 
         if !self.at(TokenKind::RParen) {
             loop {
@@ -256,10 +243,10 @@ impl<'src> Parser<'src> {
                     }
 
                     if saw_named {
-                        self.error_here(
+                        self.error(Diagnostic::error_from_code(
                             ParseDiagnosticCode::VariadicAfterNamedArg,
-                            "variadic unpack not allowed after named arguments",
-                        );
+                            ell.span,
+                        ));
                     }
 
                     if let Some(e) = self.parse_expr() {
@@ -275,22 +262,35 @@ impl<'src> Parser<'src> {
                         });
                     } else {
                         self.error_and_recover(
-                            "expected expression after '...'",
-                            &[TokenKind::Comma, TokenKind::RParen],
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(ell.span.end),
+                            ),
+                            &[
+                                TokenKind::Comma,
+                                TokenKind::RParen,
+                                TokenKind::Semicolon,
+                            ],
                         );
-                        let span = self.prev_span().unwrap_or(ell.span);
+                        let _ = self.eat(TokenKind::RParen);
+                        had_error = true;
+                        let span = Span {
+                            start: arg_start,
+                            end: ell.span.end,
+                        };
                         args.push(Arg {
                             name: None,
                             unpack: true,
                             expr: Expr::Error { span },
                             span,
                         });
+                        break;
                     }
                 } else if self.at(TokenKind::Ident)
                     && self.at_nth(1, TokenKind::Colon)
                 {
                     let name_token = self.bump();
-                    let _colon = self.bump();
+                    let colon = self.bump();
                     saw_named = true;
 
                     if let Some(e) = self.parse_expr() {
@@ -308,10 +308,22 @@ impl<'src> Parser<'src> {
                         });
                     } else {
                         self.error_and_recover(
-                            "expected expression after named-arg ':'",
-                            &[TokenKind::Comma, TokenKind::RParen],
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(colon.span.end),
+                            ),
+                            &[
+                                TokenKind::Comma,
+                                TokenKind::RParen,
+                                TokenKind::Semicolon,
+                            ],
                         );
-                        let span = self.prev_span().unwrap_or(name_token.span);
+                        let _ = self.eat(TokenKind::RParen);
+                        had_error = true;
+                        let span = Span {
+                            start: arg_start,
+                            end: colon.span.end,
+                        };
                         args.push(Arg {
                             name: Some(Ident {
                                 span: name_token.span,
@@ -320,10 +332,18 @@ impl<'src> Parser<'src> {
                             expr: Expr::Error { span },
                             span,
                         });
+                        break;
                     }
                 } else if let Some(e) = self.parse_expr() {
                     if saw_named {
-                        self.error_here(ParseDiagnosticCode::PositionalAfterNamedArg, "positional argument not allowed after named arguments");
+                        let sp = Span {
+                            start: arg_start,
+                            end: e.span().end,
+                        };
+                        self.error(Diagnostic::error_from_code(
+                            ParseDiagnosticCode::PositionalAfterNamedArg,
+                            sp,
+                        ));
                     }
                     let span = Span {
                         start: arg_start,
@@ -337,16 +357,26 @@ impl<'src> Parser<'src> {
                     });
                 } else {
                     self.error_and_recover(
-                        "expected expression in argument list",
-                        &[TokenKind::Comma, TokenKind::RParen],
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(arg_start),
+                        ),
+                        &[
+                            TokenKind::Comma,
+                            TokenKind::RParen,
+                            TokenKind::Semicolon,
+                        ],
                     );
-                    let span = self.prev_span().unwrap_or(lparen_span);
+                    let _ = self.eat(TokenKind::RParen);
+                    had_error = true;
+                    let span = Span::at(arg_start);
                     args.push(Arg {
                         name: None,
                         unpack: false,
                         expr: Expr::Error { span },
                         span,
                     });
+                    break;
                 }
 
                 if self.eat(TokenKind::Comma) {
@@ -359,18 +389,26 @@ impl<'src> Parser<'src> {
             }
         }
 
-        let rparen_span = if let Some(rp_tok) =
-            self.expect(TokenKind::RParen, "expected ')' after arguments")
-        {
+        let rparen_span = if let Some(rp_tok) = self.expect(TokenKind::RParen) {
             rp_tok.span
+        } else if had_error {
+            lparen_span
         } else {
-            self.recover_to_any(&[
-                TokenKind::Semicolon,
-                TokenKind::Comma,
-                TokenKind::RParen,
-                TokenKind::RBracket,
-                TokenKind::RBrace,
-            ]);
+            let last_end =
+                args.last().map(|a| a.span.end).unwrap_or(lparen_span.end);
+            self.error_and_recover(
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::RParen),
+                    Span::at(last_end),
+                ),
+                &[
+                    TokenKind::Semicolon,
+                    TokenKind::Comma,
+                    TokenKind::RParen,
+                    TokenKind::RBracket,
+                    TokenKind::RBrace,
+                ],
+            );
             lparen_span
         };
 
@@ -383,15 +421,42 @@ impl<'src> Parser<'src> {
         end: &mut u32,
     ) {
         while self.at(TokenKind::Backslash) {
-            self.bump();
-            if let Some(id) =
-                self.expect_ident("expected identifier after '\\'")
-            {
+            let backslash = self.bump();
+            if let Some(id) = self.expect_ident_or_err(end) {
                 *end = id.span.end;
                 parts.push(Ident { span: id.span });
             } else {
+                *end = backslash.span.end;
                 break;
             }
+        }
+    }
+
+    fn parse_braced_expr_or_error(
+        &mut self,
+        lbrace_end: u32,
+        error_span_start: u32,
+        sync: &[TokenKind],
+    ) -> Expr {
+        match self.parse_expr() {
+            Some(e) => {
+                let mut expr_end = e.span().end;
+                self.expect_or_err(TokenKind::RBrace, &mut expr_end);
+                e
+            },
+            None => {
+                self.error_and_recover(
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        Span::at(lbrace_end),
+                    ),
+                    sync,
+                );
+                let _ = self.eat(TokenKind::RBrace);
+                Expr::Error {
+                    span: Span::at(error_span_start),
+                }
+            },
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::ast::{Expr, ListItemExpr};
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(crate) fn parse_list_destructure_expr(&mut self) -> Option<Expr> {
@@ -10,13 +10,17 @@ impl<'src> Parser<'src> {
         let kw = self.bump();
         let start = kw.span.start;
 
-        let _lp =
-            self.expect(TokenKind::LParen, "expected '(' after 'list'")?;
+        let mut last_end = kw.span.end;
+        if !self.expect_or_err(TokenKind::LParen, &mut last_end) {
+            return Some(Expr::Error {
+                span: Span::at(last_end),
+            });
+        }
 
         let mut items: Vec<ListItemExpr> = Vec::new();
 
         if self.eat(TokenKind::RParen) {
-            let end = self.prev_span().unwrap().end;
+            let end = self.current_span().start;
             return Some(Expr::ListDestructure {
                 items,
                 span: Span { start, end },
@@ -43,11 +47,11 @@ impl<'src> Parser<'src> {
 
             let item_start = self.current_span().start;
 
-            let first = self.parse_list_item_expr_or_error(kw.span);
+            let first = self.parse_list_item_expr_or_error();
 
             let (key, value) = if self.eat(TokenKind::FatArrow) {
                 let key = first;
-                let value = self.parse_list_item_expr_or_error(kw.span);
+                let value = self.parse_list_item_expr_or_error();
                 (Some(key), Some(value))
             } else {
                 (None, Some(first))
@@ -78,13 +82,22 @@ impl<'src> Parser<'src> {
                 continue;
             }
 
-            let _ =
-                self.expect(TokenKind::RParen, "expected ')' after list(...)");
-            let end = self.prev_span().map(|s| s.end).unwrap_or(item_end);
+            if self.eat(TokenKind::RParen) {
+                let end = self.current_span().start;
+                return Some(Expr::ListDestructure {
+                    items,
+                    span: Span { start, end },
+                });
+            }
 
+            let mut last_end_rp = item_end;
+            self.expect_or_err(TokenKind::RParen, &mut last_end_rp);
             return Some(Expr::ListDestructure {
                 items,
-                span: Span { start, end },
+                span: Span {
+                    start,
+                    end: last_end_rp,
+                },
             });
         }
     }
@@ -103,22 +116,30 @@ impl<'src> Parser<'src> {
     }
 
     #[inline]
-    fn parse_list_item_expr_or_error(&mut self, fallback: Span) -> Expr {
+    fn parse_list_item_expr_or_error(&mut self) -> Expr {
+        let start = self.current_span().start;
+
         if self.at(TokenKind::KwList) {
-            return self.parse_list_destructure_expr().unwrap_or(Expr::Error {
-                span: self.prev_span().unwrap_or(fallback),
+            return self.parse_list_destructure_expr().unwrap_or_else(|| {
+                let sp = Span { start, end: start };
+                Expr::Error { span: sp }
             });
         }
 
         if self.at(TokenKind::LBracket) {
-            let lb = self.bump().span;
-            return self.parse_array_literal(true).unwrap_or(Expr::Error {
-                span: self.prev_span().unwrap_or(lb),
-            });
+            let lb_span = self.current_span();
+            self.bump();
+            return self
+                .parse_array_literal(true, Some(lb_span))
+                .unwrap_or_else(|| {
+                    let sp = Span { start, end: start };
+                    Expr::Error { span: sp }
+                });
         }
 
-        self.parse_expr().unwrap_or(Expr::Error {
-            span: self.prev_span().unwrap_or(fallback),
+        self.parse_expr().unwrap_or_else(|| {
+            let sp = Span { start, end: start };
+            Expr::Error { span: sp }
         })
     }
 }

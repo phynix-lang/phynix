@@ -1,204 +1,7 @@
 use memchr::{memchr, memmem};
+use phynix_core::token::{Token, TokenKind};
 use phynix_core::{LanguageKind, Span, Strictness};
 use thiserror::Error;
-
-#[derive(Copy, Clone, Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub span: Span,
-}
-
-#[repr(u16)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TokenKind {
-    HtmlChunk,
-
-    PhxtOpen, // <?phxt
-    PhxOpen,  // <?phx
-    PhpOpen,  // <?php
-    EchoOpen, // <?=
-    PhpClose, // ?>
-
-    WS, // Whitespace
-
-    AttrOpen, // #[
-
-    HashComment,  // #
-    LineComment,  // //
-    Docblock,     // /** */
-    BlockComment, // /* */
-
-    VarIdent, // $identifier
-    Ident,    // identifier
-
-    Dollar, // $
-
-    Backslash, // \
-
-    Float, // 12.34, 12e5
-
-    Int, // 0, 123, 0xff, 0b1010
-
-    StrDq, // "string"
-    StrSq, // 'string'
-    StrBt, // `string`
-
-    NullsafeArrow, // ?->
-
-    ShrEq,              // >>=
-    ShlEq,              // <<=
-    PowEq,              // **=
-    NullCoalesceAssign, // ??=
-    DotEq,              // .=
-    PlusEq,             // +=
-    MinusEq,            // -=
-    MulEq,              // *=
-    DivEq,              // /=
-    ModEq,              // %=
-    AmpEq,              // &=
-    PipeEq,             // |=
-    CaretEq,            // ^=
-
-    StrictEq,     // ===
-    StrictNe,     // !==
-    Spaceship,    // <=>
-    NullCoalesce, // ??
-    AndAnd,       // &&
-    OrOr,         // ||
-    Shl,          // <<
-    Shr,          // >>
-    Pow,          // **
-    ColCol,       // ::
-    Arrow,        // ->
-    FatArrow,     // =>
-    EqEq,         // ==
-    NotEq,        // !=
-    Le,           // <=
-    Ge,           // >=
-    Ellipsis,     // ...
-
-    PlusPlus,   // ++
-    MinusMinus, // --
-
-    Eq,       // =
-    Lt,       // <
-    Gt,       // >
-    Question, // ?
-    Dot,      // .
-
-    Plus,    // +
-    Minus,   // -
-    Star,    // *
-    Slash,   // /
-    Percent, // %
-    Amp,     // &
-    Pipe,    // |
-    Caret,   // ^
-    Silence, // @
-    Bang,    // !
-    Tilde,   // ~
-
-    LBrace,   // {
-    RBrace,   // }
-    LParen,   // (
-    RParen,   // )
-    LBracket, // [
-    RBracket, // ]
-
-    Semicolon, // ;
-    Comma,     // ,
-    Colon,     // :
-
-    KwAbstract,
-    KwAnd,
-    KwArray,
-    KwAs,
-    KwBreak,
-    KwCallable,
-    KwCase,
-    KwCatch,
-    KwClass,
-    KwClone,
-    KwConst,
-    KwContinue,
-    KwDeclare,
-    KwDefault,
-    KwDie,
-    KwDo,
-    KwEcho,
-    KwElse,
-    KwElseIf,
-    KwEmpty,
-    KwEndDeclare,
-    KwEndFor,
-    KwEndForeach,
-    KwEndIf,
-    KwEndSwitch,
-    KwEndWhile,
-    KwEnum,
-    KwEval,
-    KwExit,
-    KwExtends,
-    KwFinal,
-    KwFinally,
-    KwFn,
-    KwFor,
-    KwForeach,
-    KwFrom,
-    KwFunction,
-    KwGlobal,
-    KwGoto,
-    KwIf,
-    KwImplements,
-    KwInclude,
-    KwIncludeOnce, // include_once
-    KwInstanceof,
-    KwInsteadof,
-    KwInterface,
-    KwIsset,
-    KwList,
-    KwMatch,
-    KwNamespace,
-    KwNew,
-    KwOr,
-    KwParent,
-    KwPrint,
-    KwPrivate,
-    KwProtected,
-    KwPublic,
-    KwReadonly,
-    KwRequire,
-    KwRequireOnce, // require_once
-    KwReturn,
-    KwSelf,
-    KwStatic,
-    KwSwitch,
-    KwThrow,
-    KwTrait,
-    KwTry,
-    KwUnset,
-    KwUse,
-    KwVar,
-    KwWhile,
-    KwXor,
-    KwYield,
-
-    Eof,
-}
-
-impl TokenKind {
-    #[inline]
-    pub fn is_trivia(&self) -> bool {
-        matches!(
-            self,
-            TokenKind::WS
-                | TokenKind::HashComment
-                | TokenKind::LineComment
-                | TokenKind::BlockComment
-                | TokenKind::Docblock
-        )
-    }
-}
 
 #[inline(always)]
 fn span_u32(start: usize, end: usize) -> Span {
@@ -554,7 +357,7 @@ impl<'src> Lexer<'src> {
 
     #[inline(always)]
     fn scan_punct(&mut self) -> Option<TokenKind> {
-        use TokenKind::*;
+        use phynix_core::token::TokenKind::*;
 
         let s = self.src;
         let i = self.i;
@@ -1088,7 +891,7 @@ fn kw_of_bytes(s: &[u8]) -> Option<TokenKind> {
         return None;
     }
 
-    use TokenKind::*;
+    use phynix_core::token::TokenKind::*;
     match s.len() {
         2 => match s {
             b"as" => Some(KwAs),

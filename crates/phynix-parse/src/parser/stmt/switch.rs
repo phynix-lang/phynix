@@ -1,8 +1,9 @@
-use crate::ast::{Expr, Stmt, SwitchCase};
+use crate::ast::{Stmt, SwitchCase};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_switch_stmt(&mut self) -> Option<Stmt> {
@@ -12,71 +13,44 @@ impl<'src> Parser<'src> {
         let start = kw.span.start;
         let mut last_end = kw.span.end;
 
-        if let Some(lp) =
-            self.expect(TokenKind::LParen, "expected '(' after 'switch'")
-        {
-            last_end = lp.span.end;
-        }
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
 
-        let cond = if let Some(expr) = self.parse_expr() {
-            last_end = expr.span().end;
-            expr
-        } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedExpression,
-                "expected expression in switch condition",
-            );
-            Expr::Error {
-                span: Span {
-                    start: last_end,
-                    end: last_end,
-                },
-            }
-        };
+        let cond = self.parse_expr_or_err(&mut last_end);
 
-        if let Some(rp) = self
-            .expect(TokenKind::RParen, "expected ')' after switch condition")
-        {
-            last_end = rp.span.end;
-        }
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         let mut cases: Vec<SwitchCase> = Vec::new();
 
         // Two syntaxes:
         // switch (...) { ... }
         // switch (...): ... endswitch;
-        if self.eat(TokenKind::LBrace) {
-            last_end = self.prev_span().unwrap().end;
+        if let Some(lb) = self.expect(TokenKind::LBrace) {
+            last_end = lb.span.end;
             self.parse_switch_cases(
                 TokenKind::RBrace,
                 &mut last_end,
                 &mut cases,
             );
 
-            if let Some(rb) =
-                self.expect(TokenKind::RBrace, "expected '}' to close switch")
-            {
-                last_end = rb.span.end;
-            }
-        } else if self.eat(TokenKind::Colon) {
-            last_end = self.prev_span().unwrap().end;
+            self.expect_or_err(TokenKind::RBrace, &mut last_end);
+        } else if let Some(colon) = self.expect(TokenKind::Colon) {
+            last_end = colon.span.end;
             self.parse_switch_cases(
                 TokenKind::KwEndSwitch,
                 &mut last_end,
                 &mut cases,
             );
 
-            let end_token =
-                self.expect(TokenKind::KwEndSwitch, "expected 'endswitch'");
-            if let Some(tok) = end_token {
-                last_end = tok.span.end;
-            }
+            self.expect_or_err(TokenKind::KwEndSwitch, &mut last_end);
             let _ = self.eat(TokenKind::Semicolon);
         } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedToken,
-                "expected '{' or ':' after switch condition",
-            );
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_tokens([
+                    TokenKind::LBrace,
+                    TokenKind::Colon,
+                ]),
+                Span::at(last_end),
+            ));
         }
 
         let span = Span {
@@ -102,32 +76,24 @@ impl<'src> Parser<'src> {
                 let is_default = self.at(TokenKind::KwDefault);
                 let kw = self.bump();
                 let case_start = kw.span.start;
+                *last_end = kw.span.end;
 
                 let condition = if is_default {
                     None
                 } else {
-                    match self.parse_expr() {
-                        Some(expr) => {
-                            *last_end = expr.span().end;
-                            Some(expr)
-                        },
-                        None => {
-                            self.error_here(
-                                ParseDiagnosticCode::ExpectedExpression,
-                                "expected expression after 'case'",
-                            );
-                            None
-                        },
-                    }
+                    Some(self.parse_expr_or_err(last_end))
                 };
 
                 if !self.eat(TokenKind::Colon)
                     && !self.eat(TokenKind::Semicolon)
                 {
-                    self.error_here(
-                        ParseDiagnosticCode::ExpectedToken,
-                        "expected ':' or ';' after case/default label",
-                    );
+                    self.error(Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_tokens([
+                            TokenKind::Colon,
+                            TokenKind::Semicolon,
+                        ]),
+                        Span::at(*last_end),
+                    ));
                 }
 
                 let (body, end) = self.parse_until_any(&[
@@ -158,10 +124,13 @@ impl<'src> Parser<'src> {
                     last.body.items.push(stmt);
                     last.body.span.end = *last_end;
                 } else {
-                    self.error_here(
-                        ParseDiagnosticCode::ExpectedCaseOrDefaultInSwitch,
-                        "expected 'case' or 'default' in switch",
-                    );
+                    self.error(Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_tokens([
+                            TokenKind::KwCase,
+                            TokenKind::KwDefault,
+                        ]),
+                        Span::at(*last_end),
+                    ));
                 }
             } else {
                 if self.pos == before {

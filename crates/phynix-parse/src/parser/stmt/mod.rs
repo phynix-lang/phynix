@@ -26,20 +26,20 @@ mod varlike;
 use crate::ast::{Block, Stmt};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_stmt(&mut self) -> Option<Stmt> {
         if self.at(TokenKind::HtmlChunk) {
-            let _ = self.bump();
-            return Some(Stmt::HtmlChunk {
-                span: self.prev_span().unwrap(),
-            });
+            let tok = self.bump();
+            return Some(Stmt::HtmlChunk { span: tok.span });
         }
 
-        if self.eat(TokenKind::EchoOpen) {
-            return self.parse_echo_open_stmt();
+        if self.at(TokenKind::EchoOpen) {
+            let tok = self.bump();
+            return self.parse_echo_open_stmt(tok.span);
         }
 
         if self.at(TokenKind::RBrace) {
@@ -163,8 +163,8 @@ impl<'src> Parser<'src> {
             return self.parse_switch_stmt();
         }
 
-        if self.eat(TokenKind::Semicolon) {
-            return self.parse_empty_stmt();
+        if let Some(semi_token) = self.expect(TokenKind::Semicolon) {
+            return Some(self.parse_empty_stmt(semi_token.span));
         }
 
         if self.at(TokenKind::KwBreak) {
@@ -194,44 +194,29 @@ impl<'src> Parser<'src> {
                     last_end = var_tok.span.end;
 
                     if self.eat(TokenKind::Eq) {
-                        if let Some(expr) = self.parse_expr() {
-                            last_end = expr.span().end;
-                        } else {
-                            self.error_here(
-                                ParseDiagnosticCode::ExpectedExpression,
-                                "expected expression after '=' in static declaration",
-                            );
-                        }
+                        self.parse_expr_or_err(&mut last_end);
                     }
                 } else {
-                    self.error_here(
+                    self.error(Diagnostic::error_from_code(
                         ParseDiagnosticCode::ExpectedIdent,
-                        "expected variable after 'static'",
-                    );
+                        Span::at(last_end),
+                    ));
                     break;
                 }
 
                 if self.eat(TokenKind::Comma) {
-                    last_end = self.prev_span().unwrap().end;
                     continue;
                 }
 
                 break;
             }
 
-            let semi_span = if let Some(semi) = self.expect(
-                TokenKind::Semicolon,
-                "expected ';' after static declaration",
-            ) {
-                semi.span
-            } else {
-                self.recover_after_stmt_like(last_end)
-            };
+            self.expect_or_err(TokenKind::Semicolon, &mut last_end);
 
             return Some(Stmt::Noop {
                 span: Span {
                     start,
-                    end: semi_span.end,
+                    end: last_end,
                 },
             });
         }
@@ -279,21 +264,20 @@ impl<'src> Parser<'src> {
                 end = stmt.span().end;
                 items.push(stmt);
             } else {
-                self.recover_one_token("unexpected token in block");
-                if let Some(span) = self.prev_span() {
-                    end = span.end;
+                let sp = self.current_span();
+                if !self.eof() {
+                    let _ = self.advance();
                 }
+                end = sp.end;
             }
 
             if self.pos == before_pos {
-                if !self.eof() {
-                    let _ = self.bump();
-                    if let Some(span) = self.prev_span() {
-                        end = span.end;
-                    }
-                } else {
+                if self.eof() {
                     break;
                 }
+                let sp = self.current_span();
+                let _ = self.advance();
+                end = sp.end;
             }
         }
 

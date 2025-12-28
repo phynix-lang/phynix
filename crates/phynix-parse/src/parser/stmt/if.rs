@@ -1,8 +1,9 @@
 use crate::ast::{Block, Expr, Stmt};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_if_stmt(&mut self) -> Option<Stmt> {
@@ -12,28 +13,11 @@ impl<'src> Parser<'src> {
         let start_pos = if_token.span.start;
         let mut last_end = if_token.span.end;
 
-        let lp_token =
-            self.expect(TokenKind::LParen, "expected '(' after 'if'");
-        if let Some(lp) = lp_token.as_ref() {
-            last_end = lp.span.end;
-        }
+        self.expect_or_err(TokenKind::LParen, &mut last_end);
 
-        let cond_expr_opt = self.parse_expr();
-        if let Some(cond_expr) = cond_expr_opt.as_ref() {
-            last_end = cond_expr.span().end;
-        } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedExpression,
-                "expected condition expression after '('",
-            );
-        }
+        let cond_expr = self.parse_expr_or_err(&mut last_end);
 
-        let rparen_token =
-            self.expect(TokenKind::RParen, "expected ')' after if condition");
-        let have_rparen = rparen_token.is_some();
-        if let Some(rp) = rparen_token.as_ref() {
-            last_end = rp.span.end;
-        }
+        let have_rparen = self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         if self.eat(TokenKind::Colon) {
             let (then_block, mut last_end2) = self.parse_until_any(&[
@@ -45,18 +29,15 @@ impl<'src> Parser<'src> {
             let mut else_if_blocks: Vec<(Expr, Block)> = Vec::new();
 
             while self.at(TokenKind::KwElseIf) {
-                let _elseif = self.bump();
-                let _ = self
-                    .expect(TokenKind::LParen, "expected '(' after 'elseif'");
-                let cond = self
-                    .parse_expr()
-                    .unwrap_or(Expr::Error { span: _elseif.span });
-                let _ = self.expect(
-                    TokenKind::RParen,
-                    "expected ')' after elseif condition",
-                );
-                let _ = self
-                    .expect(TokenKind::Colon, "expected ':' after elseif(...)");
+                let elseif_kw = self.bump();
+                let mut elseif_end = elseif_kw.span.end;
+                self.expect_or_err(TokenKind::LParen, &mut elseif_end);
+                let cond = self.parse_expr().unwrap_or(Expr::Error {
+                    span: elseif_kw.span,
+                });
+                elseif_end = cond.span().end;
+                self.expect_or_err(TokenKind::RParen, &mut elseif_end);
+                self.expect_or_err(TokenKind::Colon, &mut elseif_end);
 
                 let (block, end) = self.parse_until_any(&[
                     TokenKind::KwElseIf,
@@ -69,21 +50,15 @@ impl<'src> Parser<'src> {
 
             let mut else_block_opt: Option<Block> = None;
             if self.at(TokenKind::KwElse) {
-                let _else = self.bump();
-                let _ =
-                    self.expect(TokenKind::Colon, "expected ':' after else");
+                let else_kw = self.bump();
+                let mut else_end = else_kw.span.end;
+                self.expect_or_err(TokenKind::Colon, &mut else_end);
                 let (block, end) = self.parse_until_any(&[TokenKind::KwEndIf]);
                 last_end2 = end;
                 else_block_opt = Some(block);
             }
 
-            let end_token = self.expect(
-                TokenKind::KwEndIf,
-                "expected 'endif' after if-colon block",
-            );
-            if let Some(token) = end_token {
-                last_end2 = token.span.end;
-            }
+            self.expect_or_err(TokenKind::KwEndIf, &mut last_end2);
             let _ = self.eat(TokenKind::Semicolon);
 
             let full_span = Span {
@@ -91,9 +66,7 @@ impl<'src> Parser<'src> {
                 end: last_end2,
             };
             return Some(Stmt::If {
-                cond: cond_expr_opt.unwrap_or(Expr::Error {
-                    span: if_token.span,
-                }),
+                cond: cond_expr,
                 then_block,
                 else_if_blocks,
                 else_block: else_block_opt,
@@ -110,11 +83,7 @@ impl<'src> Parser<'src> {
             last_end = end;
             block
         } else if have_rparen && self.at(TokenKind::LBrace) {
-            self.parse_branch_block(
-                &mut last_end,
-                ParseDiagnosticCode::ExpectedToken,
-                "expected '{' after if(...)",
-            )
+            self.parse_branch_block(&mut last_end)
         } else if have_rparen {
             // Single-statement if-body: if (cond) stmt;
             if let Some(stmt) = self.parse_stmt() {
@@ -128,10 +97,7 @@ impl<'src> Parser<'src> {
                     span,
                 }
             } else {
-                let fake = Span {
-                    start: last_end,
-                    end: last_end,
-                };
+                let fake = Span::at(last_end);
                 Block {
                     items: Vec::new(),
                     span: fake,
@@ -140,10 +106,7 @@ impl<'src> Parser<'src> {
         } else {
             Block {
                 items: Vec::new(),
-                span: Span {
-                    start: last_end,
-                    end: last_end,
-                },
+                span: Span::at(last_end),
             }
         };
 
@@ -152,26 +115,17 @@ impl<'src> Parser<'src> {
 
         loop {
             if self.at(TokenKind::KwElseIf) {
-                let _elseif = self.bump();
-                if let Some(_lp) = self
-                    .expect(TokenKind::LParen, "expected '(' after 'elseif'")
-                {
-                }
-                let cond_opt = self.parse_expr();
-                let _ = self.expect(
-                    TokenKind::RParen,
-                    "expected ')' after elseif condition",
-                );
+                let elseif_kw = self.bump();
+                let mut ei_end = elseif_kw.span.end;
+                self.expect_or_err(TokenKind::LParen, &mut ei_end);
+                let cond = self.parse_expr_or_err(&mut ei_end);
+                self.expect_or_err(TokenKind::RParen, &mut ei_end);
                 if !self.eat(TokenKind::Colon) {
                     // Non-colon form:
                     // - elseif (...) { ... }
                     // - elseif (...) stmt;
                     let block = if self.at(TokenKind::LBrace) {
-                        self.parse_branch_block(
-                            &mut last_end,
-                            ParseDiagnosticCode::ExpectedToken,
-                            "expected '{' after elseif(...)",
-                        )
+                        self.parse_branch_block(&mut last_end)
                     } else {
                         // Single-statement elseif-body: elseif (cond) stmt;
                         if let Some(stmt) = self.parse_stmt() {
@@ -185,23 +139,18 @@ impl<'src> Parser<'src> {
                                 span,
                             }
                         } else {
-                            self.error_here(
+                            self.error(Diagnostic::error_from_code(
                                 ParseDiagnosticCode::ExpectedStatement,
-                                "expected statement after elseif(...)",
-                            );
+                                Span::at(last_end),
+                            ));
                             Block {
                                 items: Vec::new(),
-                                span: Span {
-                                    start: last_end,
-                                    end: last_end,
-                                },
+                                span: Span::at(last_end),
                             }
                         }
                     };
 
-                    if let Some(c) = cond_opt {
-                        else_if_blocks.push((c, block));
-                    }
+                    else_if_blocks.push((cond, block));
                     continue;
                 }
                 let (block, end) = self.parse_until_any(&[
@@ -210,11 +159,10 @@ impl<'src> Parser<'src> {
                     TokenKind::KwEndIf,
                 ]);
                 last_end = end;
-                if let Some(c) = cond_opt {
-                    else_if_blocks.push((c, block));
-                }
+                else_if_blocks.push((cond, block));
                 continue;
             }
+            // ... (skipping else)
 
             if self.at(TokenKind::KwElse) {
                 let _else = self.bump();
@@ -233,10 +181,12 @@ impl<'src> Parser<'src> {
                         block_end = if_stmt.span().end;
                         items.push(if_stmt);
                     } else {
-                        self.error_here(
-                            ParseDiagnosticCode::ExpectedIfAfterElse,
-                            "expected 'if' after 'else'",
-                        );
+                        self.error(Diagnostic::error_from_code(
+                            ParseDiagnosticCode::expected_token(
+                                TokenKind::KwIf,
+                            ),
+                            Span::at(block_end),
+                        ));
                     }
 
                     let block = Block {
@@ -250,11 +200,7 @@ impl<'src> Parser<'src> {
                     last_end = block_end;
                     else_block_opt = Some(block);
                 } else if self.at(TokenKind::LBrace) {
-                    let block = self.parse_branch_block(
-                        &mut last_end,
-                        ParseDiagnosticCode::ExpectedToken,
-                        "expected '{' after 'else'",
-                    );
+                    let block = self.parse_branch_block(&mut last_end);
                     else_block_opt = Some(block);
                 } else {
                     // Single-statement else-body: else stmt;
@@ -269,10 +215,10 @@ impl<'src> Parser<'src> {
                             span,
                         });
                     } else {
-                        self.error_here(
+                        self.error(Diagnostic::error_from_code(
                             ParseDiagnosticCode::ExpectedStatement,
-                            "expected statement after 'else'",
-                        );
+                            Span::at(last_end),
+                        ));
                     }
                 }
 
@@ -282,41 +228,30 @@ impl<'src> Parser<'src> {
             break;
         }
 
-        let full_span = Span {
+        let span = Span {
             start: start_pos,
             end: last_end,
         };
         Some(Stmt::If {
-            cond: cond_expr_opt.unwrap_or(Expr::Error {
-                span: if_token.span,
-            }),
+            cond: cond_expr,
             then_block,
             else_if_blocks,
             else_block: else_block_opt,
-            span: full_span,
+            span,
         })
     }
 
-    fn parse_branch_block(
-        &mut self,
-        last_end: &mut u32,
-        code: ParseDiagnosticCode,
-        err_msg: &'static str,
-    ) -> Block {
-        let lbrace_token = self.expect(TokenKind::LBrace, err_msg);
-
-        if let Some(lb) = lbrace_token.as_ref() {
-            return match self.parse_block_after_lbrace(lb.span.start) {
+    fn parse_branch_block(&mut self, last_end: &mut u32) -> Block {
+        if let Some(token) = self.expect(TokenKind::LBrace) {
+            let lb_start = token.span.start;
+            return match self.parse_block_after_lbrace(lb_start) {
                 Some((block, block_end)) => {
                     *last_end = block_end;
                     block
                 },
                 None => {
-                    let fake_span = Span {
-                        start: lb.span.start,
-                        end: lb.span.start,
-                    };
-                    *last_end = fake_span.end;
+                    let fake_span = Span::at(lb_start);
+                    *last_end = token.span.end;
                     Block {
                         items: Vec::new(),
                         span: fake_span,
@@ -325,14 +260,14 @@ impl<'src> Parser<'src> {
             };
         }
 
-        self.error_here(code, err_msg);
-        let fake_span = Span {
-            start: *last_end,
-            end: *last_end,
-        };
+        self.error(Diagnostic::error_from_code(
+            ParseDiagnosticCode::expected_token(TokenKind::LBrace),
+            Span::at(*last_end),
+        ));
+
         Block {
             items: Vec::new(),
-            span: fake_span,
+            span: Span::at(*last_end),
         }
     }
 }

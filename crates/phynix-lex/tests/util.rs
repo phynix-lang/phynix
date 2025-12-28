@@ -1,5 +1,6 @@
+use phynix_core::token::{Token, TokenKind};
 use phynix_core::{LanguageKind, Strictness};
-use phynix_lex::{lex, LexError, Token, TokenKind};
+use phynix_lex::{lex, LexError};
 
 fn lex_ok(src: &str) -> Vec<Token> {
     let out =

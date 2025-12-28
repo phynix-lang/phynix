@@ -1,8 +1,9 @@
 use crate::ast::{Expr, Ident};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_new_expr(&mut self) -> Option<Expr> {
@@ -10,9 +11,10 @@ impl<'src> Parser<'src> {
 
         let new_token = self.bump();
         let start_pos = new_token.span.start;
+        let mut last_end = new_token.span.end;
 
         if self.at(TokenKind::KwClass) {
-            let anon_span = self.skip_anonymous_class_after_new();
+            let anon_span = self.skip_anonymous_class_after_new(&mut last_end);
             return Some(Expr::Error {
                 span: Span {
                     start: start_pos,
@@ -21,37 +23,20 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let class_expr = if self
-            .at_any(&[TokenKind::Backslash, TokenKind::Ident])
-        {
-            if let Some(qn) =
-                self.parse_qualified_name("expected name after 'new'")
-            {
-                let class_span = qn.span;
-                Expr::VarRef {
-                    name: Ident { span: qn.span },
-                    span: class_span,
-                }
-            } else {
-                self.error_and_recover(
-                    "expected class name after 'new'",
-                    &[
-                        TokenKind::LParen,
-                        TokenKind::Semicolon,
-                        TokenKind::Comma,
-                        TokenKind::RParen,
-                        TokenKind::RBrace,
-                    ],
-                );
-                let fake_span = self.prev_span().unwrap_or(new_token.span);
-                Expr::Error { span: fake_span }
-            }
-        } else if self.at_variable_start() {
-            match self.parse_variable_expr() {
-                Some(dyn_expr) => dyn_expr,
-                None => {
+        let class_expr =
+            if self.at_any(&[TokenKind::Backslash, TokenKind::Ident]) {
+                if let Some(qn) = self.parse_qualified_name() {
+                    let class_span = qn.span;
+                    Expr::VarRef {
+                        name: Ident { span: qn.span },
+                        span: class_span,
+                    }
+                } else {
                     self.error_and_recover(
-                        "expected variable after 'new $'",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedIdent,
+                            Span::at(last_end),
+                        ),
                         &[
                             TokenKind::LParen,
                             TokenKind::Semicolon,
@@ -60,30 +45,37 @@ impl<'src> Parser<'src> {
                             TokenKind::RBrace,
                         ],
                     );
-                    let fake_span = self.prev_span().unwrap_or(new_token.span);
-                    Expr::Error { span: fake_span }
-                },
-            }
-        } else {
-            self.error_and_recover(
-                "expected class name after 'new'",
-                &[
-                    TokenKind::LParen,
-                    TokenKind::Semicolon,
-                    TokenKind::Comma,
-                    TokenKind::RParen,
-                    TokenKind::RBrace,
-                ],
-            );
-            if self.eat(TokenKind::LParen) {
-                let _ = self.skip_balanced_parens();
-            }
-            let fake_span = self.prev_span().unwrap_or(new_token.span);
-            Expr::Error { span: fake_span }
-        };
+                    Expr::Error {
+                        span: Span::at(last_end),
+                    }
+                }
+            } else if self.at_variable_start() {
+                self.parse_variable_expr()
+            } else {
+                self.error_and_recover(
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        Span::at(last_end),
+                    ),
+                    &[
+                        TokenKind::LParen,
+                        TokenKind::Semicolon,
+                        TokenKind::Comma,
+                        TokenKind::RParen,
+                        TokenKind::RBrace,
+                    ],
+                );
+                if self.eat(TokenKind::LParen) {
+                    let skip_span = self.skip_balanced_parens(last_end);
+                    last_end = skip_span.end;
+                }
+                Expr::Error {
+                    span: Span::at(last_end),
+                }
+            };
 
-        let (args, end_pos) = if self.eat(TokenKind::LParen) {
-            let lparen_span = self.prev_span().unwrap();
+        let (args, end_pos) = if let Some(lp) = self.expect(TokenKind::LParen) {
+            let lparen_span = lp.span;
             let (args_vec, rparen_span) =
                 self.parse_call_arguments(lparen_span);
             (args_vec, rparen_span.end)
@@ -103,28 +95,32 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn skip_anonymous_class_after_new(&mut self) -> Span {
+    fn skip_anonymous_class_after_new(&mut self, last_end: &mut u32) -> Span {
         debug_assert!(self.at(TokenKind::KwClass));
         let class_token = self.bump();
-        let mut end = class_token.span.end;
+        *last_end = class_token.span.end;
 
         if self.eat(TokenKind::LParen) {
-            end = self.skip_balanced_parens().end;
+            *last_end = self.skip_balanced_parens(*last_end).end;
         }
 
         if self.eat(TokenKind::KwExtends) {
-            end = self.skip_qualified_name_list(1).end;
+            *last_end = self.skip_qualified_name_list(1, *last_end).end;
         }
 
         if self.eat(TokenKind::KwImplements) {
-            end = self.skip_qualified_name_list(usize::MAX).end;
+            *last_end =
+                self.skip_qualified_name_list(usize::MAX, *last_end).end;
         }
 
         if self.eat(TokenKind::LBrace) {
-            end = self.skip_balanced_braces().end;
+            *last_end = self.skip_balanced_braces(*last_end).end;
         } else {
             self.error_and_recover(
-                "expected '{' to start anonymous class body",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::LBrace),
+                    Span::at(*last_end),
+                ),
                 &[
                     TokenKind::LBrace,
                     TokenKind::Semicolon,
@@ -134,43 +130,44 @@ impl<'src> Parser<'src> {
                 ],
             );
             if self.eat(TokenKind::LBrace) {
-                end = self.skip_balanced_braces().end;
+                *last_end = self.skip_balanced_braces(*last_end).end;
             }
         }
 
         Span {
             start: class_token.span.start,
-            end,
+            end: *last_end,
         }
     }
 
-    fn skip_qualified_name_list(&mut self, max: usize) -> Span {
+    fn skip_qualified_name_list(
+        &mut self,
+        max: usize,
+        mut last_end: u32,
+    ) -> Span {
         let mut consumed = 0usize;
-        let mut end = self.prev_span().map(|s| s.end).unwrap_or_default();
 
         while consumed < max {
             if let Some(name_span) = self.try_skip_qualified_name() {
-                end = name_span.end;
+                last_end = name_span.end;
                 consumed += 1;
-                if !self.eat(TokenKind::Comma) {
+                if let Some(comma) = self.expect(TokenKind::Comma) {
+                    last_end = comma.span.end;
+                } else {
                     break;
                 }
-                end = self.prev_span().unwrap().end;
             } else {
                 if consumed == 0 {
-                    self.error_here(
+                    self.error(Diagnostic::error_from_code(
                         ParseDiagnosticCode::ExpectedIdent,
-                        "expected class/interface name",
-                    );
+                        Span::at(last_end),
+                    ));
                 }
                 break;
             }
         }
 
-        Span {
-            start: self.prev_span().map(|s| s.start).unwrap_or(end),
-            end,
-        }
+        Span::at(last_end)
     }
 
     fn try_skip_qualified_name(&mut self) -> Option<Span> {
@@ -178,15 +175,13 @@ impl<'src> Parser<'src> {
             return None;
         }
 
-        let mut end_opt: Option<u32>;
-
         let first = self.bump();
-        end_opt = Some(first.span.end);
+        let mut end = first.span.end;
         loop {
             if self.eat(TokenKind::Backslash) {
                 if self.at(TokenKind::Ident) {
                     let id = self.bump();
-                    end_opt = Some(id.span.end);
+                    end = id.span.end;
                     continue;
                 }
                 break;
@@ -196,7 +191,7 @@ impl<'src> Parser<'src> {
 
         Some(Span {
             start: first.span.start,
-            end: end_opt.unwrap(),
+            end,
         })
     }
 
@@ -204,9 +199,9 @@ impl<'src> Parser<'src> {
         &mut self,
         open: TokenKind,
         close: TokenKind,
+        mut last_end: u32,
     ) -> Span {
         let mut depth = 1;
-        let mut end = self.prev_span().unwrap().end;
 
         while depth > 0 && !self.at(TokenKind::Eof) {
             if self.eat(open) {
@@ -215,25 +210,22 @@ impl<'src> Parser<'src> {
             }
             if self.at(close) {
                 let r = self.bump();
-                end = r.span.end;
+                last_end = r.span.end;
                 depth -= 1;
                 continue;
             }
-            let _ = self.bump();
-            end = self.prev_span().unwrap().end;
+            let tok = self.bump();
+            last_end = tok.span.end;
         }
 
-        Span {
-            start: self.prev_span().unwrap().start,
-            end,
-        }
+        Span::at(last_end)
     }
 
-    fn skip_balanced_parens(&mut self) -> Span {
-        self.skip_balanced_core(TokenKind::LParen, TokenKind::RParen)
+    fn skip_balanced_parens(&mut self, last_end: u32) -> Span {
+        self.skip_balanced_core(TokenKind::LParen, TokenKind::RParen, last_end)
     }
 
-    fn skip_balanced_braces(&mut self) -> Span {
-        self.skip_balanced_core(TokenKind::LBrace, TokenKind::RBrace)
+    fn skip_balanced_braces(&mut self, last_end: u32) -> Span {
+        self.skip_balanced_core(TokenKind::LBrace, TokenKind::RBrace, last_end)
     }
 }

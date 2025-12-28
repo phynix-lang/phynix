@@ -1,6 +1,8 @@
 use phynix_core::{Span, Spanned};
 
-#[derive(Debug)]
+use super::Expr;
+
+#[derive(Debug, Clone)]
 pub struct Ident {
     pub span: Span,
 }
@@ -35,4 +37,5 @@ pub enum SpecialClassName {
 pub enum ClassNameRef {
     Qualified(QualifiedName),
     Special(SpecialClassName),
+    Dynamic(Box<Expr>),
 }

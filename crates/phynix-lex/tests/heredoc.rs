@@ -1,5 +1,5 @@
 use crate::util::{assert_kinds_eq, kinds, kinds_php_prefixed};
-use phynix_lex::TokenKind;
+use phynix_core::token::TokenKind;
 
 mod util;
 

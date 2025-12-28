@@ -1,7 +1,6 @@
 use crate::ast::{ClassFlags, QualifiedName};
 use crate::parser::Parser;
-use phynix_lex::{Token, TokenKind};
-
+use phynix_core::token::TokenKind;
 impl<'src> Parser<'src> {
     pub(super) fn consume_brace_body(&mut self, first_lbrace_end: u32) -> u32 {
         let mut depth = 1;
@@ -66,9 +65,7 @@ impl<'src> Parser<'src> {
             let _implements_token = self.bump();
 
             loop {
-                if let Some(iface_qn) = self.parse_qualified_name(
-                    "expected interface name after 'implements'",
-                ) {
+                if let Some(iface_qn) = self.parse_qualified_name() {
                     last_end = Some(iface_qn.span.end);
                     interfaces.push(iface_qn);
                 } else {
@@ -85,26 +82,15 @@ impl<'src> Parser<'src> {
         (interfaces, last_end)
     }
 
-    #[inline(always)]
-    pub(crate) fn end_pos_or(
-        &self,
-        token_opt: Option<&Token>,
-        fallback: u32,
-    ) -> u32 {
-        token_opt
-            .map(|t| t.span.end)
-            .or_else(|| self.prev_span().map(|s| s.end))
-            .unwrap_or(fallback)
-    }
-
     #[inline]
     pub(crate) fn eat_and_update_end(
         &mut self,
         k: TokenKind,
         last_end: &mut u32,
     ) -> bool {
-        if self.eat(k) {
-            *last_end = self.prev_span().unwrap().end;
+        if self.at(k) {
+            let tok = self.bump();
+            *last_end = tok.span.end;
             true
         } else {
             false

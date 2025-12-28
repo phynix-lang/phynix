@@ -1,7 +1,9 @@
 use crate::ast::{Block, Ident, Param, QualifiedName, Stmt, TypeRef};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_function_stmt(&mut self) -> Option<Stmt> {
@@ -13,22 +15,18 @@ impl<'src> Parser<'src> {
 
         let _by_ref = self.eat(TokenKind::Amp);
 
-        let (fn_ident, name_end) = if let Some(name_token) =
-            self.expect_ident("expected function name after 'function'")
-        {
-            (
-                Ident {
-                    span: name_token.span,
-                },
-                name_token.span.end,
-            )
-        } else {
-            let fake_span = Span {
-                start: last_end,
-                end: last_end,
+        let (fn_ident, name_end) =
+            if let Some(name_token) = self.expect_ident_or_err(&mut last_end) {
+                (
+                    Ident {
+                        span: name_token.span,
+                    },
+                    name_token.span.end,
+                )
+            } else {
+                let fake_span = Span::at(last_end);
+                (Ident { span: fake_span }, last_end)
             };
-            (Ident { span: fake_span }, last_end)
-        };
         last_end = name_end;
 
         let (params, _params_end) = match self.parse_param_list() {
@@ -38,7 +36,11 @@ impl<'src> Parser<'src> {
             },
             None => {
                 self.error_and_recover(
-                    "failed to parse parameter list",
+                    Diagnostic::error(
+                        ParseDiagnosticCode::UnexpectedToken, // TODO: Better code
+                        Span::at(last_end),
+                        "failed to parse parameter list",
+                    ),
                     &[
                         TokenKind::LBrace,
                         TokenKind::Semicolon,
@@ -54,15 +56,16 @@ impl<'src> Parser<'src> {
             self.parse_optional_return_type(last_end);
         last_end = new_last_end;
 
-        if !self.eat(TokenKind::LBrace) {
-            self.recover_one_token("expected '{' to start function body");
+        if !self.at(TokenKind::LBrace) {
+            let sp = Span::at(last_end);
+            self.recover_one_token(Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_token(TokenKind::LBrace),
+                sp,
+            ));
 
             let body_block = Block {
                 items: Vec::new(),
-                span: Span {
-                    start: last_end,
-                    end: last_end,
-                },
+                span: Span::at(last_end),
             };
 
             let span = Span {
@@ -79,7 +82,8 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let lbrace_span = self.prev_span().unwrap();
+        let lbrace = self.bump();
+        let lbrace_span = lbrace.span;
         let (body_block, body_end) =
             self.parse_block_after_lbrace(lbrace_span.start).unwrap();
 
@@ -98,15 +102,13 @@ impl<'src> Parser<'src> {
     }
 
     pub(crate) fn parse_param_list(&mut self) -> Option<(Vec<Param>, u32)> {
-        let lparen_token =
-            self.expect(TokenKind::LParen, "expected '(' after function name")?;
+        let lparen_token = self.expect(TokenKind::LParen)?;
 
         let mut params = Vec::new();
         let mut last_end = lparen_token.span.end;
 
-        if self.eat(TokenKind::RParen) {
-            let rparen_end = self.prev_span().unwrap().end;
-            return Some((params, rparen_end));
+        if let Some(rp) = self.expect(TokenKind::RParen) {
+            return Some((params, rp.span.end));
         }
 
         loop {
@@ -121,7 +123,11 @@ impl<'src> Parser<'src> {
                 },
                 None => {
                     self.error_and_recover(
-                        "invalid parameter",
+                        Diagnostic::error(
+                            ParseDiagnosticCode::UnexpectedToken, // TODO Better code
+                            Span::at(last_end),
+                            "invalid parameter",
+                        ),
                         &[TokenKind::Comma, TokenKind::RParen],
                     );
                 },
@@ -144,7 +150,10 @@ impl<'src> Parser<'src> {
             last_end = rparen_token.span.end;
         } else {
             self.error_and_recover(
-                "expected ')' to close parameter list",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::RParen),
+                    Span::at(last_end),
+                ),
                 &[TokenKind::RParen, TokenKind::LBrace, TokenKind::Semicolon],
             );
         }
@@ -176,26 +185,30 @@ impl<'src> Parser<'src> {
         } else {
             if !self.at(TokenKind::Dollar) {
                 self.error_and_recover(
-                    "expected '$' in parameter",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_token(TokenKind::Dollar),
+                        Span::at(last_end),
+                    ),
                     &[TokenKind::Comma, TokenKind::RParen],
                 );
                 return None;
             }
-            let _dollar = self.bump();
-            match self.expect_ident("expected parameter name after '$'") {
+            let dollar = self.bump();
+            last_end = dollar.span.end;
+            match self.expect_ident_or_err(&mut last_end) {
                 Some(token) => {
                     last_end = token.span.end;
                     Ident { span: token.span }
                 },
                 None => {
                     self.error_and_recover(
-                        "missing parameter name",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedIdent,
+                            Span::at(last_end),
+                        ),
                         &[TokenKind::Comma, TokenKind::RParen],
                     );
-                    let fake = Span {
-                        start: last_end,
-                        end: last_end,
-                    };
+                    let fake = Span::at(last_end);
                     return Some(Param {
                         name: Ident { span: fake },
                         type_annotation: maybe_type,
@@ -211,15 +224,7 @@ impl<'src> Parser<'src> {
 
         let mut default_expr = None;
         if self.eat(TokenKind::Eq) {
-            if let Some(expr) = self.parse_expr() {
-                last_end = expr.span().end;
-                default_expr = Some(expr);
-            } else {
-                self.error_and_recover(
-                    "expected default expression after '=' in parameter",
-                    &[TokenKind::Comma, TokenKind::RParen],
-                );
-            }
+            default_expr = Some(self.parse_expr_or_err(&mut last_end));
         }
 
         let span = Span {
@@ -262,9 +267,6 @@ impl<'src> Parser<'src> {
 
             if self.pos == before {
                 self.recover_stmt_in_block();
-                if let Some(span) = self.prev_span() {
-                    body_end = span.end;
-                }
             }
         }
 
@@ -346,9 +348,10 @@ impl<'src> Parser<'src> {
         let mut saw_question = false;
         let mut start_pos = self.current_span().start;
 
-        if self.eat(TokenKind::Question) {
+        if self.at(TokenKind::Question) {
+            let q = self.bump();
             saw_question = true;
-            start_pos = self.prev_span().unwrap().start;
+            start_pos = q.span.start;
         }
 
         let k0 = *self.nth_kind(0);
@@ -368,9 +371,7 @@ impl<'src> Parser<'src> {
         let first_qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
             qn
         } else {
-            match self
-                .parse_qualified_name("expected type before parameter name")
-            {
+            match self.parse_qualified_name() {
                 Some(qn) => qn,
                 None => {
                     let here = self.current_span().start;
@@ -435,15 +436,16 @@ impl<'src> Parser<'src> {
         }
 
         let mut saw_question = false;
-        if self.eat(TokenKind::Question) {
+        if self.at(TokenKind::Question) {
+            let q = self.bump();
             saw_question = true;
-            last_end = self.prev_span().unwrap().end;
+            last_end = q.span.end;
         }
 
         let first_qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
             qn
         } else {
-            match self.parse_qualified_name("expected return type after ':'") {
+            match self.parse_qualified_name() {
                 Some(qn) => qn,
                 None => return (None, last_end),
             }
@@ -518,7 +520,7 @@ impl<'src> Parser<'src> {
                 {
                     Some(qn)
                 } else {
-                    self.parse_qualified_name("expected type after '|'")
+                    self.parse_qualified_name()
                 };
 
                 if let Some(next_qn) = next_qn {
@@ -540,7 +542,7 @@ impl<'src> Parser<'src> {
                 let qn = if let Some(qn) = self.try_parse_builtin_type_qn() {
                     Some(qn)
                 } else {
-                    self.parse_qualified_name("expected type after '&'")
+                    self.parse_qualified_name()
                 };
 
                 if let Some(qn) = qn {

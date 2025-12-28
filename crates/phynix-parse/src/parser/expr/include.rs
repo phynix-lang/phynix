@@ -1,7 +1,9 @@
 use crate::ast::{Expr, IncludeKind};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_include_expr(
@@ -12,12 +14,14 @@ impl<'src> Parser<'src> {
         let start_pos = kw_token.span.start;
 
         let target_expr = if self.eat(TokenKind::LParen) {
+            let last_end = self.current_span().start;
             let inner_expr = match self.parse_expr() {
                 Some(mut expr) => {
                     loop {
                         if !self.eat(TokenKind::Comma) {
                             break;
                         }
+                        let comma_end = self.current_span().start;
 
                         match self.parse_expr() {
                             Some(next) => {
@@ -25,7 +29,10 @@ impl<'src> Parser<'src> {
                             },
                             None => {
                                 self.error_and_recover(
-                                    "expected expression after ',' in include(...)",
+                                    Diagnostic::error_from_code(
+                                        ParseDiagnosticCode::ExpectedExpression,
+                                        Span::at(comma_end),
+                                    ),
                                     &[
                                         TokenKind::RParen,
                                         TokenKind::Semicolon,
@@ -42,7 +49,10 @@ impl<'src> Parser<'src> {
                 },
                 None => {
                     self.error_and_recover(
-                        "expected expression inside include(...)",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(last_end),
+                        ),
                         &[
                             TokenKind::RParen,
                             TokenKind::Semicolon,
@@ -51,67 +61,69 @@ impl<'src> Parser<'src> {
                         ],
                     );
 
-                    let fake_span = self.prev_span().unwrap_or(kw_token.span);
+                    let fake_span = self.current_span();
                     let fake = Expr::Error { span: fake_span };
 
-                    if self
-                        .expect(
-                            TokenKind::RParen,
-                            "expected ')' after include(...)",
-                        )
-                        .is_none()
-                    {
-                        self.recover_to_any(&[
+                    self.expect_closing_or_recover(
+                        TokenKind::RParen,
+                        &[
                             TokenKind::Semicolon,
                             TokenKind::Comma,
                             TokenKind::RBrace,
                             TokenKind::RParen,
-                        ]);
-                    }
+                        ],
+                    );
 
                     fake
                 },
             };
 
-            return if let Some(rp_tok) = self
-                .expect(TokenKind::RParen, "expected ')' after include(...)")
-            {
-                let full_span = Span {
-                    start: start_pos,
-                    end: rp_tok.span.end,
-                };
+            return if self.at(TokenKind::RParen) {
+                let rp_end = self.bump().span.end;
 
                 Some(Expr::Include {
                     kind,
                     target: Box::new(inner_expr),
-                    span: full_span,
+                    span: Span {
+                        start: start_pos,
+                        end: rp_end,
+                    },
                 })
             } else {
-                self.recover_to_any(&[
-                    TokenKind::Semicolon,
-                    TokenKind::Comma,
-                    TokenKind::RBrace,
-                    TokenKind::RParen,
-                ]);
+                let sp = self.current_span();
+                self.error_and_recover(
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_token(TokenKind::RParen),
+                        sp,
+                    ),
+                    &[
+                        TokenKind::Semicolon,
+                        TokenKind::Comma,
+                        TokenKind::RBrace,
+                        TokenKind::RParen,
+                    ],
+                );
 
                 let fallback_end = inner_expr.span().end;
-                let full_span = Span {
-                    start: start_pos,
-                    end: fallback_end,
-                };
-
                 Some(Expr::Include {
                     kind,
                     target: Box::new(inner_expr),
-                    span: full_span,
+                    span: Span {
+                        start: start_pos,
+                        end: fallback_end,
+                    },
                 })
             };
         } else {
+            let kw_end = kw_token.span.end;
             match self.parse_expr() {
                 Some(expr) => expr,
                 None => {
                     self.error_and_recover(
-                        "expected expression after include",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(kw_end),
+                        ),
                         &[
                             TokenKind::Semicolon,
                             TokenKind::Comma,
@@ -120,8 +132,9 @@ impl<'src> Parser<'src> {
                         ],
                     );
 
-                    let fake_span = self.prev_span().unwrap_or(kw_token.span);
-                    Expr::Error { span: fake_span }
+                    Expr::Error {
+                        span: self.current_span(),
+                    }
                 },
             }
         };

@@ -1,7 +1,7 @@
-use crate::ast::{ClassMember, Ident, QualifiedName, Stmt};
+use crate::ast::{ClassMember, QualifiedName, Stmt};
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_interface_stmt(&mut self) -> Option<Stmt> {
@@ -11,29 +11,14 @@ impl<'src> Parser<'src> {
         let iface_start = interface_token.span.start;
         let mut last_end = interface_token.span.end;
 
-        let iface_ident = if let Some(name_token) =
-            self.expect_ident("expected interface name after 'interface'")
-        {
-            last_end = name_token.span.end;
-            Ident {
-                span: name_token.span,
-            }
-        } else {
-            let fake = Span {
-                start: last_end,
-                end: last_end,
-            };
-            Ident { span: fake }
-        };
+        let iface_ident = self.expect_ident_ast_or_err(&mut last_end);
 
         let mut extends_list: Vec<QualifiedName> = Vec::new();
         if self.at(TokenKind::KwExtends) {
             let _extends_token = self.bump();
 
             loop {
-                if let Some(parent_qn) = self.parse_qualified_name(
-                    "expected interface name after 'extends'",
-                ) {
+                if let Some(parent_qn) = self.parse_qualified_name() {
                     last_end = parent_qn.span.end;
                     extends_list.push(parent_qn);
                 } else {
@@ -50,10 +35,7 @@ impl<'src> Parser<'src> {
             }
         }
 
-        let lbrace_token = self
-            .expect(TokenKind::LBrace, "expected '{' to start interface body");
-
-        if lbrace_token.is_none() {
+        if !self.expect_or_err(TokenKind::LBrace, &mut last_end) {
             let span = Span {
                 start: iface_start,
                 end: last_end,
@@ -66,8 +48,7 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let lbrace_token = lbrace_token.unwrap();
-        let body_end = self.consume_brace_body(lbrace_token.span.end);
+        let body_end = self.consume_brace_body(last_end);
 
         let iface_span = Span {
             start: iface_start,

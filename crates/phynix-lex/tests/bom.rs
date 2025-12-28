@@ -1,6 +1,7 @@
 use crate::util::assert_kinds_eq;
+use phynix_core::token::TokenKind;
 use phynix_core::{LanguageKind, Strictness};
-use phynix_lex::{lex, TokenKind};
+use phynix_lex::lex;
 
 mod util;
 

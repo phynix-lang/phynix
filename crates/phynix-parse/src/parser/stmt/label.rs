@@ -1,7 +1,7 @@
 use crate::ast::{Ident, Stmt};
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_label_stmt(&mut self) -> Option<Stmt> {
@@ -10,10 +10,13 @@ impl<'src> Parser<'src> {
         );
 
         let name_token = self.bump();
-        let _ = self.expect(TokenKind::Colon, "expected ':' after label");
+        let mut last_end = name_token.span.end;
+
+        self.expect_or_err(TokenKind::Colon, &mut last_end);
+
         let span = Span {
             start: name_token.span.start,
-            end: self.prev_span().unwrap().end,
+            end: last_end,
         };
 
         Some(Stmt::Label {

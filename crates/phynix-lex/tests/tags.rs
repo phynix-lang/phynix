@@ -1,8 +1,9 @@
 mod util;
 
 use crate::util::{assert_kinds_eq, kinds};
+use phynix_core::token::TokenKind;
 use phynix_core::{LanguageKind, Strictness};
-use phynix_lex::{lex, TokenKind};
+use phynix_lex::lex;
 
 #[test]
 fn echo_open_tag_is_tokenized() {

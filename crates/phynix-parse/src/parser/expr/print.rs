@@ -1,7 +1,9 @@
 use crate::ast::Expr;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(crate) fn parse_print_expr(&mut self) -> Option<Expr> {
@@ -14,7 +16,10 @@ impl<'src> Parser<'src> {
             Some(e) => e,
             None => {
                 self.error_and_recover(
-                    "expected expression after 'print'",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedExpression,
+                        Span::at(kw.span.end),
+                    ),
                     &[
                         TokenKind::Semicolon,
                         TokenKind::Comma,

@@ -1,7 +1,9 @@
 use crate::ast::{Ident, Stmt, UseImport, UseKind};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_use_stmt(&mut self) -> Option<Stmt> {
@@ -22,8 +24,7 @@ impl<'src> Parser<'src> {
         let mut imports: Vec<UseImport> = Vec::new();
 
         loop {
-            let qn_opt =
-                self.parse_qualified_name("expected name in use statement");
+            let qn_opt = self.parse_qualified_name();
             if qn_opt.is_none() {
                 self.recover_to_any(&[TokenKind::Comma, TokenKind::Semicolon]);
                 if self.eat(TokenKind::Comma) {
@@ -48,20 +49,22 @@ impl<'src> Parser<'src> {
                         item_kind = UseKind::Const;
                     }
 
-                    let first =
-                        match self.expect_ident("expected name in group use") {
-                            Some(token) => token,
-                            None => {
-                                self.error_and_recover(
-                                    "expected name in group use",
-                                    &[TokenKind::Comma, TokenKind::RBrace],
-                                );
-                                if self.eat(TokenKind::Comma) {
-                                    continue;
-                                }
-                                break;
-                            },
-                        };
+                    let first = match self.expect_ident() {
+                        Some(token) => token,
+                        None => {
+                            self.error_and_recover(
+                                Diagnostic::error_from_code(
+                                    ParseDiagnosticCode::ExpectedIdent,
+                                    Span::at(last_end),
+                                ),
+                                &[TokenKind::Comma, TokenKind::RBrace],
+                            );
+                            if self.eat(TokenKind::Comma) {
+                                continue;
+                            }
+                            break;
+                        },
+                    };
 
                     let mut tail_parts = vec![Ident { span: first.span }];
                     let mut tail_end = first.span.end;
@@ -103,6 +106,8 @@ impl<'src> Parser<'src> {
                         span: full_qn_span,
                     });
 
+                    last_end = tail_end;
+
                     if self.eat(TokenKind::Comma) {
                         if !self.at(TokenKind::RBrace) {
                             continue;
@@ -111,33 +116,38 @@ impl<'src> Parser<'src> {
                     break;
                 }
 
-                if let Some(rb) = self.expect(
-                    TokenKind::RBrace,
-                    "expected '}' to close group use",
-                ) {
+                if let Some(rb) = self.expect(TokenKind::RBrace) {
                     last_end = rb.span.end;
                 } else {
                     self.error_and_recover(
-                        "recovered after unterminated group use",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::expected_token(
+                                TokenKind::RBrace,
+                            ),
+                            Span::at(last_end),
+                        ),
                         &[TokenKind::RBrace, TokenKind::Semicolon],
                     );
                 }
 
-                let end_span = if let Some(semi) = self.expect(
-                    TokenKind::Semicolon,
-                    "expected ';' after use statement",
-                ) {
-                    semi.span
-                } else {
-                    self.error_and_recover(
-                        "recovered after unterminated use",
-                        &[TokenKind::Semicolon, TokenKind::RBrace],
-                    );
-                    Span {
-                        start: start_span.start,
-                        end: last_end,
-                    }
-                };
+                let end_span =
+                    if let Some(semi) = self.expect(TokenKind::Semicolon) {
+                        semi.span
+                    } else {
+                        self.error_and_recover(
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::expected_token(
+                                    TokenKind::Semicolon,
+                                ),
+                                Span::at(last_end),
+                            ),
+                            &[TokenKind::Semicolon, TokenKind::RBrace],
+                        );
+                        Span {
+                            start: start_span.start,
+                            end: last_end,
+                        }
+                    };
 
                 let full_span = Span {
                     start: start_span.start,
@@ -171,13 +181,17 @@ impl<'src> Parser<'src> {
             }
         }
 
-        let end_span = if let Some(semi_tok) = self
-            .expect(TokenKind::Semicolon, "expected ';' after use statement")
+        let end_span = if let Some(semi_tok) = self.expect(TokenKind::Semicolon)
         {
             semi_tok.span
         } else {
+            let fallback_end =
+                imports.last().map(|i| i.span.end).unwrap_or(start_span.end);
             self.error_and_recover(
-                "recovered after unterminated use",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::Semicolon),
+                    Span::at(fallback_end),
+                ),
                 &[
                     TokenKind::Semicolon,
                     TokenKind::RBrace,
@@ -206,16 +220,21 @@ impl<'src> Parser<'src> {
         recover: &[TokenKind],
     ) -> Option<Ident> {
         if self.at(TokenKind::KwAs) {
-            self.bump();
-            if let Some(as_token) =
-                self.expect_ident("expected alias after 'as'")
-            {
-                *end_ref = as_token.span.end;
+            let as_tok = self.bump();
+            let as_end = as_tok.span.end;
+            if let Some(alias_token) = self.expect_ident_or_err(end_ref) {
+                *end_ref = alias_token.span.end;
                 return Some(Ident {
-                    span: as_token.span,
+                    span: alias_token.span,
                 });
             } else {
-                self.error_and_recover("expected alias after 'as'", recover);
+                self.error_and_recover(
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        Span::at(as_end),
+                    ),
+                    recover,
+                );
             }
         }
         None

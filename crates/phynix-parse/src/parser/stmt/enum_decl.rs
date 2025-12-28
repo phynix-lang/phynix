@@ -1,7 +1,7 @@
-use crate::ast::{ClassMember, Ident, Stmt, TypeRef};
+use crate::ast::{ClassMember, Stmt, TypeRef};
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_enum_stmt(&mut self) -> Option<Stmt> {
@@ -11,39 +11,23 @@ impl<'src> Parser<'src> {
         let enum_start = enum_token.span.start;
         let mut last_end = enum_token.span.end;
 
-        let name_token =
-            match self.expect_ident("expected enum name after 'enum'") {
-                Some(token) => token,
-                None => {
-                    let fake_span = Span {
-                        start: last_end,
-                        end: last_end,
-                    };
-
-                    return Some(Stmt::Enum {
-                        name: Ident { span: fake_span },
-                        backed_type: None,
-                        implements: Vec::new(),
-                        body: Vec::<ClassMember>::new(),
-                        span: Span {
-                            start: enum_start,
-                            end: last_end,
-                        },
-                    });
+        let enum_ident = self.expect_ident_ast_or_err(&mut last_end);
+        if enum_ident.span.start == enum_ident.span.end {
+            return Some(Stmt::Enum {
+                name: enum_ident,
+                backed_type: None,
+                implements: Vec::new(),
+                body: Vec::<ClassMember>::new(),
+                span: Span {
+                    start: enum_start,
+                    end: last_end,
                 },
-            };
-
-        let enum_ident = Ident {
-            span: name_token.span,
-        };
-
-        last_end = name_token.span.end;
+            });
+        }
 
         let mut backed_type: Option<TypeRef> = None;
         if self.eat(TokenKind::Colon) {
-            if let Some(qn) = self
-                .parse_qualified_name("expected enum backing type after ':'")
-            {
+            if let Some(qn) = self.parse_qualified_name() {
                 let ty_span = qn.span;
                 last_end = ty_span.end;
 
@@ -59,10 +43,7 @@ impl<'src> Parser<'src> {
             last_end = end;
         }
 
-        let lbrace_token =
-            self.expect(TokenKind::LBrace, "expected '{' to start enum body");
-
-        if lbrace_token.is_none() {
+        if !self.expect_or_err(TokenKind::LBrace, &mut last_end) {
             let span = Span {
                 start: enum_start,
                 end: last_end,
@@ -77,8 +58,7 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let lbrace_token = lbrace_token.unwrap();
-        let mut body_end_pos = lbrace_token.span.end;
+        let mut body_end_pos = last_end;
 
         let mut depth = 0;
         loop {

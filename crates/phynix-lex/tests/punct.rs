@@ -3,7 +3,8 @@ mod util;
 use crate::util::{
     assert_kinds_eq, kinds_php_prefixed, lex_err, lex_err_php_prefixed,
 };
-use phynix_lex::{LexError, TokenKind};
+use phynix_core::token::TokenKind;
+use phynix_lex::LexError;
 
 #[test]
 fn braces_commas_colons() {

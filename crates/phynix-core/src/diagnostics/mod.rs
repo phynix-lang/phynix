@@ -34,6 +34,18 @@ impl DiagnosticCodeStr for DiagnosticCode {
     }
 }
 
+pub trait DiagnosticErrorMessage {
+    fn default_message(&self) -> String;
+}
+
+impl DiagnosticErrorMessage for DiagnosticCode {
+    fn default_message(&self) -> String {
+        match self {
+            DiagnosticCode::Parse(code) => code.default_message(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Label {
     pub span: Span,
@@ -90,6 +102,14 @@ impl Diagnostic {
         message: impl Into<String>,
     ) -> Self {
         Self::new(Severity::Error, code.into(), span, message)
+    }
+
+    pub fn error_from_code<C: Into<DiagnosticCode> + DiagnosticErrorMessage>(
+        code: C,
+        span: Span,
+    ) -> Self {
+        let message = code.default_message();
+        Self::error(code, span, message)
     }
 
     #[inline]

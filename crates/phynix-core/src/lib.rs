@@ -1,4 +1,5 @@
 pub mod diagnostics;
+pub mod token;
 
 pub enum LanguageKind {
     /// .php
@@ -26,7 +27,16 @@ pub struct Span {
 }
 
 impl Span {
-    pub const EMPTY: Span = Span { start: 0, end: 0 };
+    pub const EMPTY: Span = Span::at(0);
+
+    /// Creates a zero-width span at the given position.
+    #[inline]
+    pub const fn at(pos: u32) -> Span {
+        Span {
+            start: pos,
+            end: pos,
+        }
+    }
 }
 
 pub trait Spanned {

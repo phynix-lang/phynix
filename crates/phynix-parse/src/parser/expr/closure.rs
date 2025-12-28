@@ -1,7 +1,9 @@
 use crate::ast::{Block, ClosureUse, Expr, Ident};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_closure_expr(&mut self) -> Option<Expr> {
@@ -23,11 +25,15 @@ impl<'src> Parser<'src> {
 
         let mut captured_uses: Vec<ClosureUse> = Vec::new();
         if self.at(TokenKind::KwUse) {
-            let _use_token = self.bump();
+            let use_token = self.bump();
+            last_end = use_token.span.end;
 
             if !self.at(TokenKind::LParen) {
                 self.error_and_recover(
-                    "expected '(' after 'use'",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_token(TokenKind::LParen),
+                        Span::at(last_end),
+                    ),
                     &[
                         TokenKind::LParen,
                         TokenKind::RParen,
@@ -36,7 +42,8 @@ impl<'src> Parser<'src> {
                     ],
                 );
             } else {
-                let _lparen = self.bump();
+                let lparen = self.bump();
+                last_end = lparen.span.end;
 
                 loop {
                     if self.at(TokenKind::RParen) {
@@ -48,21 +55,26 @@ impl<'src> Parser<'src> {
                     let (name_span, full_span) = if self.at(TokenKind::VarIdent)
                     {
                         let var_token = self.bump();
+                        last_end = var_token.span.end;
                         (var_token.span, var_token.span)
-                    } else if self.eat(TokenKind::Dollar) {
-                        match self
-                            .expect_ident("expected variable name in use()")
-                        {
+                    } else if self.at(TokenKind::Dollar) {
+                        let dollar_tok = self.bump();
+                        last_end = dollar_tok.span.end;
+
+                        match self.expect_ident_or_err(&mut last_end) {
                             Some(name_tok) => {
                                 let span = Span {
-                                    start: self.prev_span().unwrap().start,
+                                    start: dollar_tok.span.start,
                                     end: name_tok.span.end,
                                 };
                                 (name_tok.span, span)
                             },
                             None => {
                                 self.error_and_recover(
-                                    "expected variable name in use()",
+                                    Diagnostic::error_from_code(
+                                        ParseDiagnosticCode::ExpectedIdent,
+                                        Span::at(last_end),
+                                    ),
                                     &[TokenKind::Comma, TokenKind::RParen],
                                 );
                                 break;
@@ -70,7 +82,12 @@ impl<'src> Parser<'src> {
                         }
                     } else {
                         self.error_and_recover(
-                            "expected '$' in use()",
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::expected_token(
+                                    TokenKind::Dollar,
+                                ),
+                                Span::at(last_end),
+                            ),
                             &[TokenKind::Comma, TokenKind::RParen],
                         );
                         break;
@@ -88,17 +105,16 @@ impl<'src> Parser<'src> {
                     break;
                 }
 
-                if let Some(rp) = self
-                    .expect(TokenKind::RParen, "expected ')' after use() list")
-                {
-                    last_end = rp.span.end;
-                } else {
-                    self.recover_to_any(&[
+                if let Some(end) = self.expect_closing_or_recover(
+                    TokenKind::RParen,
+                    &[
                         TokenKind::LBrace,
                         TokenKind::FatArrow,
                         TokenKind::Semicolon,
                         TokenKind::RBrace,
-                    ]);
+                    ],
+                ) {
+                    last_end = end;
                 }
             }
         }
@@ -106,15 +122,21 @@ impl<'src> Parser<'src> {
         let (return_type, _new_last_end) =
             self.parse_optional_return_type(last_end);
 
-        if self.eat(TokenKind::LBrace) {
-            let lbrace_start = self.prev_span().unwrap().start;
+        if self.at(TokenKind::LBrace) {
+            let lbrace_tok = self.bump();
+            let lbrace_start = lbrace_tok.span.start;
+            last_end = lbrace_tok.span.end;
 
             let (body_block, body_end_pos) =
                 match self.parse_block_after_lbrace(lbrace_start) {
                     Some(res) => res,
                     None => {
                         self.error_and_recover(
-                            "invalid closure body",
+                            Diagnostic::error(
+                                ParseDiagnosticCode::UnexpectedToken, // TODO: Better code
+                                Span::at(last_end),
+                                "invalid closure body",
+                            ),
                             &[
                                 TokenKind::RBrace,
                                 TokenKind::Semicolon,
@@ -122,10 +144,7 @@ impl<'src> Parser<'src> {
                             ],
                         );
 
-                        let dummy_span = Span {
-                            start: lbrace_start,
-                            end: lbrace_start,
-                        };
+                        let dummy_span = Span::at(lbrace_start);
 
                         let empty_block = Block {
                             items: Vec::new(),
@@ -166,11 +185,15 @@ impl<'src> Parser<'src> {
         }
 
         if self.eat(TokenKind::FatArrow) {
+            let arrow_end = self.current_span().start;
             let body_expr = match self.parse_expr() {
                 Some(expr) => expr,
                 None => {
                     self.error_and_recover(
-                        "expected expression after '=>' in arrow closure",
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(arrow_end),
+                        ),
                         &[
                             TokenKind::Semicolon,
                             TokenKind::Comma,
@@ -179,10 +202,7 @@ impl<'src> Parser<'src> {
                         ],
                     );
 
-                    let fallback_span = self.prev_span().unwrap_or(Span {
-                        start: start_pos,
-                        end: start_pos,
-                    });
+                    let fallback_span = Span::at(start_pos);
 
                     Expr::Error {
                         span: fallback_span,
@@ -208,7 +228,10 @@ impl<'src> Parser<'src> {
         }
 
         self.error_and_recover(
-            "expected '{' or '=>' after closure signature",
+            Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_token(TokenKind::LBrace),
+                Span::at(last_end),
+            ),
             &[
                 TokenKind::Semicolon,
                 TokenKind::Comma,

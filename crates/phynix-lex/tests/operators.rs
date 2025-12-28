@@ -1,7 +1,7 @@
 mod util;
 
 use crate::util::{assert_kinds_eq, kinds_php_prefixed};
-use phynix_lex::TokenKind;
+use phynix_core::token::TokenKind;
 
 #[test]
 fn longest_operators() {

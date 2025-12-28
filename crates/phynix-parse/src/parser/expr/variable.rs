@@ -1,10 +1,12 @@
 use crate::ast::{Expr, Ident};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
-    pub(super) fn parse_variable_expr(&mut self) -> Option<Expr> {
+    pub(super) fn parse_variable_expr(&mut self) -> Expr {
         debug_assert!(self.at_variable_start());
 
         if self.at(TokenKind::VarIdent) {
@@ -14,10 +16,10 @@ impl<'src> Parser<'src> {
                 end: var_token.span.end,
             };
 
-            return Some(Expr::VarRef {
+            return Expr::VarRef {
                 name: Ident { span: name_span },
                 span: var_token.span,
-            });
+            };
         }
 
         // Fallback: leading '$' (supports $$...$name)
@@ -40,13 +42,15 @@ impl<'src> Parser<'src> {
                 v.span,
                 extra + 1,
             )
-        } else if let Some(id) =
-            self.expect_ident("expected identifier after '$'")
-        {
+        } else if let Some(id) = self.expect_ident() {
             (id.span, id.span, extra)
         } else {
+            let err_pos = first_dollar.span.end;
             self.error_and_recover(
-                "expected variable name after '$'",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::ExpectedIdent,
+                    Span::at(err_pos),
+                ),
                 &[
                     TokenKind::Semicolon,
                     TokenKind::Comma,
@@ -55,9 +59,9 @@ impl<'src> Parser<'src> {
                     TokenKind::RBrace,
                 ],
             );
-            let fake = self.prev_span().unwrap_or(first_dollar.span);
+            let fake = Span::at(err_pos);
             let err = Expr::Error { span: fake };
-            return Some(self.wrap_variable_levels(err, extra, start_pos));
+            return self.wrap_variable_levels(err, extra, start_pos);
         };
 
         let base = Expr::VarRef {
@@ -68,7 +72,7 @@ impl<'src> Parser<'src> {
             },
         };
 
-        Some(self.wrap_variable_levels(base, levels, start_pos))
+        self.wrap_variable_levels(base, levels, start_pos)
     }
 
     fn wrap_variable_levels(

@@ -6,8 +6,8 @@ mod util;
 use crate::ast::*;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::{Token, TokenKind};
 use phynix_core::{LanguageKind, Span, Spanned, Strictness};
-use phynix_lex::{Token, TokenKind};
 
 pub struct Parser<'src> {
     src: &'src str,
@@ -80,7 +80,12 @@ impl<'src> Parser<'src> {
                 if self.at(TokenKind::PhpOpen) || self.at(TokenKind::PhpClose) {
                     continue;
                 }
-                self.recover_one_token("unexpected token at top level");
+                let sp = self.current_span();
+                self.recover_one_token(Diagnostic::error(
+                    ParseDiagnosticCode::UnexpectedToken,
+                    sp,
+                    "unexpected token at top level",
+                ));
             }
         }
 
@@ -123,7 +128,7 @@ impl<'src> Parser<'src> {
     }
 
     #[inline(always)]
-    fn span(&self) -> Span {
+    fn current_span(&self) -> Span {
         self.cur.span
     }
 
@@ -177,20 +182,6 @@ impl<'src> Parser<'src> {
     #[inline(always)]
     pub fn eof(&self) -> bool {
         matches!(self.kind(), &TokenKind::Eof)
-    }
-
-    #[inline(always)]
-    pub fn current_span(&self) -> Span {
-        self.span()
-    }
-
-    #[inline(always)]
-    pub fn prev_span(&self) -> Option<Span> {
-        if self.pos == 0 {
-            None
-        } else {
-            Some(self.tokens[self.pos - 1].span)
-        }
     }
 
     #[inline(always)]
@@ -273,25 +264,87 @@ impl<'src> Parser<'src> {
         )
     }
 
-    pub fn expect(
+    pub fn expect(&mut self, kind: TokenKind) -> Option<&'src Token> {
+        self.at(kind).then(|| self.bump())
+    }
+
+    /// Returns `true` and updates `span_end` if token was found.
+    /// Emits error at `span_end` position if not found.
+    pub fn expect_or_err(
         &mut self,
         kind: TokenKind,
-        msg: &'static str,
-    ) -> Option<&'src Token> {
-        if self.at(kind) {
-            Some(self.bump())
+        span_end: &mut u32,
+    ) -> bool {
+        if let Some(token) = self.expect(kind) {
+            *span_end = token.span.end;
+            true
         } else {
-            self.error_here(ParseDiagnosticCode::ExpectedToken, msg);
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_token(kind),
+                Span::at(*span_end),
+            ));
+            false
+        }
+    }
+
+    pub fn expect_ident(&mut self) -> Option<&'src Token> {
+        match self.kind() {
+            TokenKind::Ident => Some(self.bump()),
+            k if self.is_ident_like_kw(k) => Some(self.bump()),
+            _ => None,
+        }
+    }
+
+    pub fn expect_ident_or_err(
+        &mut self,
+        last_end: &mut u32,
+    ) -> Option<&'src Token> {
+        if let Some(tok) = self.expect_ident() {
+            *last_end = tok.span.end;
+            Some(tok)
+        } else {
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::ExpectedIdent,
+                Span::at(*last_end),
+            ));
             None
         }
     }
 
-    pub fn expect_ident(&mut self, msg: &'static str) -> Option<&'src Token> {
-        if let Some(tok) = self.bump_ident_like() {
-            Some(tok)
+    pub fn expect_ident_ast_or_err(&mut self, last_end: &mut u32) -> Ident {
+        if let Some(tok) = self.expect_ident_or_err(last_end) {
+            Ident { span: tok.span }
         } else {
-            self.error_here(ParseDiagnosticCode::ExpectedIdent, msg);
-            None
+            Ident {
+                span: Span::at(*last_end),
+            }
+        }
+    }
+
+    pub fn parse_expr_or_err(&mut self, last_end: &mut u32) -> Expr {
+        self.parse_or_err(
+            ParseDiagnosticCode::ExpectedExpression,
+            Span::at(*last_end),
+            |p| p.parse_expr(),
+        )
+        .map(|e| {
+            *last_end = e.span().end;
+            e
+        })
+        .unwrap_or_else(|s| Expr::Error { span: s })
+    }
+
+    pub fn parse_or_err<T>(
+        &mut self,
+        code: ParseDiagnosticCode,
+        span: Span,
+        f: impl FnOnce(&mut Self) -> Option<T>,
+    ) -> Result<T, Span> {
+        if let Some(res) = f(self) {
+            Ok(res)
+        } else {
+            self.error(Diagnostic::error_from_code(code, span));
+            Err(span)
         }
     }
 
@@ -332,29 +385,13 @@ impl<'src> Parser<'src> {
     }
 
     #[cold]
-    pub fn error_here(&mut self, code: ParseDiagnosticCode, msg: &'static str) {
-        let span = if !self.eof() {
-            self.span()
-        } else {
-            self.prev_span().unwrap_or(Span::EMPTY)
-        };
-        self.error_span(code, span, msg);
+    pub fn error(&mut self, diagnostic: Diagnostic) {
+        self.diagnostics.push(diagnostic);
     }
 
     #[cold]
-    pub fn error_span(
-        &mut self,
-        code: ParseDiagnosticCode,
-        span: Span,
-        message: &'static str,
-    ) {
-        self.diagnostics
-            .push(Diagnostic::error(code, span, message));
-    }
-
-    #[cold]
-    pub fn recover_one_token(&mut self, message: &'static str) {
-        self.error_here(ParseDiagnosticCode::UnexpectedToken, message);
+    pub fn recover_one_token(&mut self, diagnostic: Diagnostic) {
+        self.error(diagnostic);
         if !self.eof() {
             let _ = self.advance();
         }
@@ -367,12 +404,13 @@ impl<'src> Parser<'src> {
         }
     }
 
+    #[cold]
     pub fn error_and_recover(
         &mut self,
-        message: &'static str,
+        diagnostic: Diagnostic,
         sync: &[TokenKind],
     ) {
-        self.error_here(ParseDiagnosticCode::UnexpectedToken, message);
+        self.error(diagnostic);
         self.recover_to_any(sync);
     }
 }

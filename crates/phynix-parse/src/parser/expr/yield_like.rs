@@ -1,8 +1,7 @@
 use crate::ast::Expr;
 use crate::parser::Parser;
-use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_yield_like_expr(&mut self) -> Option<Expr> {
@@ -16,21 +15,7 @@ impl<'src> Parser<'src> {
             let f = self.bump();
             last_end = f.span.end;
 
-            let value = if let Some(expr) = self.parse_expr() {
-                last_end = expr.span().end;
-                expr
-            } else {
-                self.error_here(
-                    ParseDiagnosticCode::ExpectedExpression,
-                    "expected expression after 'yield from'",
-                );
-                Expr::Error {
-                    span: Span {
-                        start: last_end,
-                        end: last_end,
-                    },
-                }
-            };
+            let value = self.parse_expr_or_err(&mut last_end);
 
             return Some(Expr::YieldFrom {
                 expr: Box::new(value),
@@ -45,18 +30,9 @@ impl<'src> Parser<'src> {
             last_end = expr.span().end;
             expr
         } else {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedExpression,
-                "expected expression after 'yield'",
-            );
             return Some(Expr::Yield {
                 key: None,
-                value: Box::new(Expr::Error {
-                    span: Span {
-                        start: last_end,
-                        end: last_end,
-                    },
-                }),
+                value: Box::new(self.parse_expr_or_err(&mut last_end)),
                 span: Span {
                     start,
                     end: last_end,
@@ -65,27 +41,9 @@ impl<'src> Parser<'src> {
         };
 
         if self.eat(TokenKind::FatArrow) {
-            let _arrow = self.prev_span().unwrap();
-            let value = if let Some(expr) = self.parse_expr() {
-                last_end = expr.span().end;
-                expr
-            } else {
-                self.error_and_recover(
-                    "expected value after '=>' in yield",
-                    &[
-                        TokenKind::Semicolon,
-                        TokenKind::RParen,
-                        TokenKind::Comma,
-                        TokenKind::RBrace,
-                    ],
-                );
-                Expr::Error {
-                    span: self.prev_span().unwrap_or(Span {
-                        start: last_end,
-                        end: last_end,
-                    }),
-                }
-            };
+            let mut arrow_end = self.current_span().start;
+            let value = self.parse_expr_or_err(&mut arrow_end);
+            last_end = arrow_end;
 
             return Some(Expr::Yield {
                 key: Some(Box::new(first)),

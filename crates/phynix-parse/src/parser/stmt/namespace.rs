@@ -1,8 +1,9 @@
 use crate::ast::{Block, Stmt};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_namespace_stmt(&mut self) -> Option<Stmt> {
@@ -14,7 +15,7 @@ impl<'src> Parser<'src> {
         let ns_name_opt = if self.at(TokenKind::Backslash)
             || matches!(self.peek().map(|t| t.kind), Some(TokenKind::Ident))
         {
-            self.parse_qualified_name("expected namespace name")
+            self.parse_qualified_name()
         } else {
             None
         };
@@ -44,10 +45,7 @@ impl<'src> Parser<'src> {
                 match self.parse_block_after_lbrace(lb.span.start) {
                     Some((block, end)) => (block, end),
                     None => {
-                        let span = Span {
-                            start: lb.span.start,
-                            end: lb.span.start,
-                        };
+                        let span = Span::at(lb.span.start);
                         (
                             Block {
                                 items: Vec::new(),
@@ -68,28 +66,27 @@ impl<'src> Parser<'src> {
             });
         }
 
-        self.error_span(
-            ParseDiagnosticCode::ExpectedToken,
-            Span {
-                start: err_pos,
-                end: err_pos,
-            },
-            "expected ';' or '{' after namespace name",
+        self.error_and_recover(
+            Diagnostic::error_from_code(
+                ParseDiagnosticCode::expected_tokens([
+                    TokenKind::Semicolon,
+                    TokenKind::LBrace,
+                ]),
+                Span::at(err_pos),
+            ),
+            &[
+                TokenKind::LBrace,
+                TokenKind::Semicolon,
+                TokenKind::KwNamespace,
+                TokenKind::RBrace,
+            ],
         );
 
-        self.recover_to_any(&[
-            TokenKind::LBrace,
-            TokenKind::Semicolon,
-            TokenKind::KwNamespace,
-            TokenKind::RBrace,
-        ]);
-        let last_end = self.prev_span().map(|s| s.end).unwrap_or(ns_start);
+        let last_end =
+            ns_name_opt.as_ref().map(|n| n.span.end).unwrap_or(ns_start);
         let empty = Block {
             items: Vec::new(),
-            span: Span {
-                start: last_end,
-                end: last_end,
-            },
+            span: Span::at(last_end),
         };
         let span = Span {
             start: ns_start,

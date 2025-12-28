@@ -1,7 +1,7 @@
 use crate::ast::Expr;
 use crate::parser::Parser;
-use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
+use phynix_core::token::TokenKind;
+use phynix_core::Span;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_eval_expr(&mut self) -> Option<Expr> {
@@ -10,26 +10,21 @@ impl<'src> Parser<'src> {
         let kw = self.bump();
         let start = kw.span.start;
 
-        let _lp =
-            self.expect(TokenKind::LParen, "expected '(' after 'eval'")?;
+        let mut last_end = kw.span.end;
+        if !self.expect_or_err(TokenKind::LParen, &mut last_end) {
+            return None;
+        }
 
-        let inner = match self.parse_expr() {
-            Some(e) => e,
-            None => {
-                self.error_and_recover(
-                    "expected expression inside eval(...)",
-                    &[TokenKind::RParen],
-                );
-                Expr::Error { span: kw.span }
-            },
-        };
+        let inner = self.parse_expr_or_err(&mut last_end);
 
-        let rp = self.expect(TokenKind::RParen, "expected ')' after eval(...)");
-        let end = self.end_pos_or(rp, inner.span().end);
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         Some(Expr::Eval {
             expr: Box::new(inner),
-            span: Span { start, end },
+            span: Span {
+                start,
+                end: last_end,
+            },
         })
     }
 }

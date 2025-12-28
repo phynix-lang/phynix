@@ -1,9 +1,9 @@
 use crate::ast::{
-    ClassFlags, ClassMember, ClassNameRef, Ident, QualifiedName, Stmt,
+    ClassFlags, ClassMember, ClassNameRef, QualifiedName, Stmt,
 };
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_class_stmt(
@@ -15,40 +15,19 @@ impl<'src> Parser<'src> {
         let class_token = self.bump();
         let class_start = class_token.span.start;
 
-        let (class_name_qn, mut last_end) = if let Some(name_tok) =
-            self.expect_ident("expected class name after 'class'")
-        {
-            let ident_span = name_tok.span;
-
-            let qn = QualifiedName {
-                absolute: false,
-                parts: vec![Ident { span: ident_span }],
-                span: ident_span,
-            };
-
-            (qn, ident_span.end)
-        } else {
-            let fake_span = Span {
-                start: class_token.span.end,
-                end: class_token.span.end,
-            };
-
-            let qn = QualifiedName {
-                absolute: false,
-                parts: vec![Ident { span: fake_span }],
-                span: fake_span,
-            };
-
-            (qn, class_token.span.end)
+        let mut last_end = class_token.span.end;
+        let class_ident = self.expect_ident_ast_or_err(&mut last_end);
+        let class_name_qn = QualifiedName {
+            absolute: false,
+            parts: vec![class_ident.clone()],
+            span: class_ident.span,
         };
 
         let mut extends_name: Option<QualifiedName> = None;
         if self.at(TokenKind::KwExtends) {
             let _extends_token = self.bump();
 
-            if let Some(parent_qn) = self.parse_qualified_name(
-                "expected parent class name after 'extends'",
-            ) {
+            if let Some(parent_qn) = self.parse_qualified_name() {
                 last_end = parent_qn.span.end;
                 extends_name = Some(parent_qn);
             }
@@ -59,10 +38,7 @@ impl<'src> Parser<'src> {
             last_end = end;
         }
 
-        let lbrace_token =
-            self.expect(TokenKind::LBrace, "expected '{' to start class body");
-
-        if lbrace_token.is_none() {
+        if !self.expect_or_err(TokenKind::LBrace, &mut last_end) {
             let span = Span {
                 start: class_start,
                 end: last_end,
@@ -78,8 +54,7 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let lbrace_token = lbrace_token.unwrap();
-        let body_start = lbrace_token.span.end;
+        let body_start = last_end;
 
         let (body_end_pos, _members) = self.consume_class_body(body_start);
 

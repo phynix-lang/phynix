@@ -17,9 +17,9 @@ use crate::ast::{
 };
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::{Token, TokenKind};
 use phynix_core::{Span, Spanned};
-use phynix_lex::{Token, TokenKind};
-
 impl<'src> Parser<'src> {
     fn parse_primary(&mut self) -> Option<Expr> {
         if self.at(TokenKind::Int) {
@@ -36,7 +36,7 @@ impl<'src> Parser<'src> {
         }
 
         if self.at_variable_start() {
-            return self.parse_variable_expr();
+            return Some(self.parse_variable_expr());
         }
 
         if let Some(kind) = self.keyword_to_include_kind(*self.nth_kind(0)) {
@@ -68,7 +68,8 @@ impl<'src> Parser<'src> {
         }
 
         if self.eat(TokenKind::LBracket) {
-            return self.parse_array_literal(true);
+            let lb_span = self.current_span();
+            return self.parse_array_literal(true, Some(lb_span));
         }
 
         if self.at(TokenKind::KwArray) {
@@ -145,8 +146,9 @@ impl<'src> Parser<'src> {
             return self.parse_identifier_expr();
         }
 
-        if self.eat(TokenKind::LParen) {
-            return self.parse_paren_expr();
+        if self.at(TokenKind::LParen) {
+            let lp = self.bump();
+            return self.parse_paren_expr(lp.span);
         }
 
         None
@@ -168,19 +170,27 @@ impl<'src> Parser<'src> {
         let mut cond = self.parse_coalesce_expr()?;
 
         loop {
+            let q_span = self.current_span();
             if !self.eat(TokenKind::Question) {
                 break;
             }
-            let q_span = self.prev_span().unwrap();
+
+            let mut last_end = q_span.end;
 
             let then_opt = if self.at(TokenKind::Colon) {
                 None
             } else {
                 match self.parse_coalesce_expr() {
-                    Some(expr) => Some(expr),
+                    Some(expr) => {
+                        last_end = expr.span().end;
+                        Some(expr)
+                    },
                     None => {
                         self.error_and_recover(
-                            "expected expression after '?'",
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(last_end),
+                            ),
                             &[
                                 TokenKind::Colon,
                                 TokenKind::Semicolon,
@@ -194,9 +204,12 @@ impl<'src> Parser<'src> {
                 }
             };
 
-            if !self.eat(TokenKind::Colon) {
+            if !self.at(TokenKind::Colon) {
                 self.error_and_recover(
-                    "expected ':' in ternary expression",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::expected_token(TokenKind::Colon),
+                        Span::at(last_end),
+                    ),
                     &[
                         TokenKind::Colon,
                         TokenKind::Semicolon,
@@ -205,26 +218,21 @@ impl<'src> Parser<'src> {
                         TokenKind::RBracket,
                     ],
                 );
-                let fake = self.prev_span().unwrap_or(q_span);
-                return Some(Expr::Error { span: fake });
+                return Some(Expr::Error {
+                    span: Span::at(last_end),
+                });
             }
 
-            let else_expr = match self.parse_conditional_expr() {
-                Some(expr) => expr,
-                None => {
-                    self.error_and_recover(
-                        "expected expression after ':' in ternary expression",
-                        &[
-                            TokenKind::Semicolon,
-                            TokenKind::Comma,
-                            TokenKind::RParen,
-                            TokenKind::RBracket,
-                        ],
-                    );
-                    let fake = self.prev_span().unwrap_or(q_span);
-                    Expr::Error { span: fake }
-                },
-            };
+            let colon_span = self.current_span();
+            let _ = self.bump();
+
+            let else_expr = self
+                .parse_or_err(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    Span::at(colon_span.end),
+                    |p| p.parse_conditional_expr(),
+                )
+                .unwrap_or_else(|s| Expr::Error { span: s });
 
             let span = Span {
                 start: cond.span().start,
@@ -246,12 +254,16 @@ impl<'src> Parser<'src> {
         let mut left = self.parse_assignment_expr()?;
 
         loop {
+            let nc_span = self.current_span();
             if self.eat(TokenKind::NullCoalesce) {
                 let right = match self.parse_assignment_expr() {
                     Some(expr) => expr,
                     None => {
                         self.error_and_recover(
-                            "expected expression after '??'",
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(nc_span.end),
+                            ),
                             &[
                                 TokenKind::Comma,
                                 TokenKind::Semicolon,
@@ -357,19 +369,14 @@ impl<'src> Parser<'src> {
     }
 
     pub(super) fn parse_prefix_term(&mut self) -> Option<Expr> {
-        if self.eat(TokenKind::PlusPlus) {
-            let op_span = self.prev_span().unwrap();
+        if self.at(TokenKind::PlusPlus) {
+            let op_span = self.current_span();
+            self.bump();
 
-            let inner = match self.parse_prefix_term() {
-                Some(e) => e,
-                None => {
-                    self.error_here(
-                        ParseDiagnosticCode::ExpectedExpression,
-                        "expected expression after '++'",
-                    );
-                    return Some(Expr::Error { span: op_span });
-                },
-            };
+            let inner = self.parse_prefix_term_or_error(op_span.end);
+            if matches!(inner, Expr::Error { .. }) {
+                return Some(inner);
+            }
 
             let span = Span {
                 start: op_span.start,
@@ -382,19 +389,14 @@ impl<'src> Parser<'src> {
             });
         }
 
-        if self.eat(TokenKind::MinusMinus) {
-            let op_span = self.prev_span().unwrap();
+        if self.at(TokenKind::MinusMinus) {
+            let op_span = self.current_span();
+            self.bump();
 
-            let inner = match self.parse_prefix_term() {
-                Some(e) => e,
-                None => {
-                    self.error_here(
-                        ParseDiagnosticCode::ExpectedExpression,
-                        "expected expression after '--'",
-                    );
-                    return Some(Expr::Error { span: op_span });
-                },
-            };
+            let inner = self.parse_prefix_term_or_error(op_span.end);
+            if matches!(inner, Expr::Error { .. }) {
+                return Some(inner);
+            }
 
             let span = Span {
                 start: op_span.start,
@@ -408,16 +410,10 @@ impl<'src> Parser<'src> {
         }
 
         if let Some((ck, sp)) = self.try_parse_cast_prefix() {
-            let inner = match self.parse_prefix_term() {
-                Some(e) => e,
-                None => {
-                    self.error_here(
-                        ParseDiagnosticCode::ExpectedExpression,
-                        "expected expression after cast",
-                    );
-                    return Some(Expr::Error { span: sp });
-                },
-            };
+            let inner = self.parse_prefix_term_or_error(sp.end);
+            if matches!(inner, Expr::Error { .. }) {
+                return Some(inner);
+            }
 
             let span = Span {
                 start: sp.start,
@@ -436,10 +432,10 @@ impl<'src> Parser<'src> {
             let rhs = match self.parse_prefix_term() {
                 Some(e) => e,
                 None => {
-                    self.error_here(
+                    self.error(Diagnostic::error_from_code(
                         ParseDiagnosticCode::ExpectedExpression,
-                        "expected expression after 'throw'",
-                    );
+                        throw_token.span,
+                    ));
                     let span = throw_token.span;
                     return Some(Expr::Error { span });
                 },
@@ -472,15 +468,25 @@ impl<'src> Parser<'src> {
             let kw = self.bump();
             let start = kw.span.start;
 
-            let arg_opt = if self.eat(TokenKind::LParen) {
+            let arg_opt = if self.at(TokenKind::LParen) {
+                let lparen = self.bump();
                 if self.eat(TokenKind::RParen) {
                     None
                 } else {
                     let expr = self.parse_expr();
-                    let _ = self.expect(
-                        TokenKind::RParen,
-                        "expected ')' after exit/die argument",
-                    );
+                    if expr.is_none() {
+                        self.error(Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedExpression,
+                            Span::at(lparen.span.end),
+                        ));
+                        self.recover_to_any(&[
+                            TokenKind::RParen,
+                            TokenKind::Semicolon,
+                        ]);
+                        let _ = self.eat(TokenKind::RParen);
+                        let mut rp_end = expr.as_ref().unwrap().span().end;
+                        self.expect_or_err(TokenKind::RParen, &mut rp_end);
+                    }
                     expr
                 }
             } else if self.at_any(&[
@@ -565,12 +571,16 @@ impl<'src> Parser<'src> {
         Some(expr)
     }
 
+    fn parse_prefix_term_or_error(&mut self, error_pos: u32) -> Expr {
+        self.parse_expr_or_err(&mut { error_pos })
+    }
+
     fn try_parse_cast_prefix(&mut self) -> Option<(CastKind, Span)> {
         let save = self.pos;
+        let lp = self.current_span();
         if !self.eat(TokenKind::LParen) {
             return None;
         }
-        let lp = self.prev_span().unwrap();
 
         let ident = match self.peek() {
             Some(token)
@@ -590,12 +600,12 @@ impl<'src> Parser<'src> {
             },
         };
 
+        let rp = self.current_span();
         if !self.eat(TokenKind::RParen) {
             self.pos = save;
             self.skip_trivia_and_cache();
             return None;
         }
-        let rp = self.prev_span().unwrap();
 
         let kind = match ident.1.as_str() {
             "int" | "integer" => CastKind::Int,
@@ -621,29 +631,29 @@ impl<'src> Parser<'src> {
     }
 
     fn try_parse_unary_prefix(&mut self) -> Option<(UnOpKind, u32)> {
-        if self.eat(TokenKind::Silence) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::Suppress, span.start));
+        if self.at(TokenKind::Silence) {
+            self.bump();
+            return Some((UnOpKind::Suppress, self.current_span().start));
         }
-        if self.eat(TokenKind::Bang) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::Not, span.start));
+        if self.at(TokenKind::Bang) {
+            self.bump();
+            return Some((UnOpKind::Not, self.current_span().start));
         }
-        if self.eat(TokenKind::Minus) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::Neg, span.start));
+        if self.at(TokenKind::Minus) {
+            self.bump();
+            return Some((UnOpKind::Neg, self.current_span().start));
         }
-        if self.eat(TokenKind::Plus) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::Plus, span.start));
+        if self.at(TokenKind::Plus) {
+            self.bump();
+            return Some((UnOpKind::Plus, self.current_span().start));
         }
-        if self.eat(TokenKind::Amp) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::Ref, span.start));
+        if self.at(TokenKind::Amp) {
+            self.bump();
+            return Some((UnOpKind::Ref, self.current_span().start));
         }
-        if self.eat(TokenKind::Tilde) {
-            let span = self.prev_span().unwrap();
-            return Some((UnOpKind::BitNot, span.start));
+        if self.at(TokenKind::Tilde) {
+            self.bump();
+            return Some((UnOpKind::BitNot, self.current_span().start));
         }
 
         None
@@ -651,8 +661,9 @@ impl<'src> Parser<'src> {
 
     fn parse_postfix_chain(&mut self, mut base: Expr) -> Option<Expr> {
         loop {
-            if self.eat(TokenKind::LParen) {
-                let lparen_span = self.prev_span().unwrap();
+            if self.at(TokenKind::LParen) {
+                let lparen_span = self.current_span();
+                self.bump();
 
                 let (args, rparen_span) =
                     self.parse_call_arguments(lparen_span);
@@ -680,46 +691,38 @@ impl<'src> Parser<'src> {
                 };
 
                 if self.at_variable_start() {
-                    let prop_expr = match self.parse_variable_expr() {
-                        Some(expr) => expr,
-                        None => {
-                            self.error_and_recover(
-                                "expected variable after '->'/$",
-                                &[
-                                    TokenKind::Semicolon,
-                                    TokenKind::Comma,
-                                    TokenKind::RParen,
-                                    TokenKind::RBracket,
-                                    TokenKind::RBrace,
-                                ],
-                            );
-                            return Some(base);
-                        },
-                    };
+                    let prop_expr = self.parse_variable_expr();
 
                     base = self.finish_dynamic_object_member(base, prop_expr);
 
                     continue;
                 }
 
+                let lbrace_span = self.current_span();
                 if self.eat(TokenKind::LBrace) {
                     let inner = match self.parse_expr() {
-                        Some(e) => e,
+                        Some(e) => {
+                            let mut expr_end = e.span().end;
+                            self.expect_or_err(
+                                TokenKind::RBrace,
+                                &mut expr_end,
+                            );
+                            e
+                        },
                         None => {
                             self.error_and_recover(
-                                "expected expression after '{' in '->{...}'",
-                                &[TokenKind::RBrace],
+                                Diagnostic::error_from_code(
+                                    ParseDiagnosticCode::ExpectedExpression,
+                                    Span::at(lbrace_span.end),
+                                ),
+                                &[TokenKind::RBrace, TokenKind::Semicolon],
                             );
-                            let fake = self.prev_span().unwrap_or(base.span());
-                            Expr::Error { span: fake }
+                            let _ = self.eat(TokenKind::RBrace);
+                            Expr::Error {
+                                span: Span::at(lbrace_span.end),
+                            }
                         },
                     };
-                    let rb = self.expect(
-                        TokenKind::RBrace,
-                        "expected '}' after '->{expr}'",
-                    );
-                    let _rb_end =
-                        rb.map(|t| t.span.end).unwrap_or(inner.span().end);
 
                     base = self.finish_dynamic_object_member(base, inner);
 
@@ -756,11 +759,13 @@ impl<'src> Parser<'src> {
                 continue;
             }
 
+            let lbracket_span = self.current_span();
             if self.eat(TokenKind::LBracket) {
+                let rbracket_span = self.current_span();
                 if self.eat(TokenKind::RBracket) {
                     let span = Span {
                         start: base.span().start,
-                        end: self.prev_span().unwrap().end,
+                        end: rbracket_span.end,
                     };
                     base = Expr::ArrayAppend {
                         array: Box::new(base),
@@ -772,32 +777,31 @@ impl<'src> Parser<'src> {
                     Some(expr) => expr,
                     None => {
                         self.error_and_recover(
-                            "expected expression inside []",
-                            &[TokenKind::RBracket],
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::expected_token(
+                                    TokenKind::RBracket,
+                                ),
+                                Span::at(lbracket_span.end),
+                            ),
+                            &[TokenKind::RBracket, TokenKind::Semicolon],
                         );
-
-                        if !self.at(TokenKind::RBracket) {
-                            self.recover_to_any(&[
-                                TokenKind::Semicolon,
-                                TokenKind::Comma,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                                TokenKind::RBrace,
-                            ]);
-                            return Some(base);
-                        }
-
-                        let span = self.prev_span().unwrap_or(Span::EMPTY);
-                        Expr::Error { span }
+                        let _ = self.eat(TokenKind::RBracket);
+                        return Some(base);
                     },
                 };
 
-                let rb_token = match self
-                    .expect(TokenKind::RBracket, "expected ']' after subscript")
-                {
+                let rb_token = match self.expect(TokenKind::RBracket) {
                     Some(token) => token,
                     None => {
-                        self.recover_to_any(SYNC_POSTFIX);
+                        self.error_and_recover(
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::expected_token(
+                                    TokenKind::RBracket,
+                                ),
+                                Span::at(index_expr.span().end),
+                            ),
+                            SYNC_POSTFIX,
+                        );
                         return Some(base);
                     },
                 };
@@ -849,22 +853,8 @@ impl<'src> Parser<'src> {
             }
 
             if self.eat(TokenKind::ColCol) {
-                let class_ref = match self.make_class_name_ref(&base) {
-                    Some(class_name) => class_name,
-                    None => {
-                        self.error_and_recover(
-                            "expected class name before '::'",
-                            &[
-                                TokenKind::Semicolon,
-                                TokenKind::Comma,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                                TokenKind::RBrace,
-                            ],
-                        );
-                        return Some(base);
-                    },
-                };
+                let base_start = base.span().start;
+                let (class_ref, _base_span) = self.make_class_name_ref(base);
 
                 if self.at(TokenKind::VarIdent) {
                     let var_ident_token = self.bump();
@@ -872,7 +862,7 @@ impl<'src> Parser<'src> {
                         span: var_ident_token.span,
                     };
                     let full_span = Span {
-                        start: base.span().start,
+                        start: base_start,
                         end: var_ident_token.span.end,
                     };
                     base = Expr::StaticPropertyFetch {
@@ -882,19 +872,25 @@ impl<'src> Parser<'src> {
                     };
                     continue;
                 }
-                if self.eat(TokenKind::Dollar) {
-                    let name_token = match self.expect_ident_or_sync(
-                        "expected property name after '::$'",
-                        SYNC_POSTFIX,
-                    ) {
+                if self.at(TokenKind::Dollar) {
+                    let dollar_span = self.current_span();
+                    self.bump();
+                    let dollar_end = dollar_span.end;
+                    let name_token = match self
+                        .expect_ident_or_sync(dollar_end, SYNC_POSTFIX)
+                    {
                         Some(token) => token,
-                        None => return Some(base),
+                        None => {
+                            return Some(Expr::Error {
+                                span: Span::at(dollar_end),
+                            })
+                        },
                     };
                     let prop_ident = Ident {
                         span: name_token.span,
                     };
                     let full_span = Span {
-                        start: base.span().start,
+                        start: base_start,
                         end: name_token.span.end,
                     };
                     base = Expr::StaticPropertyFetch {
@@ -905,33 +901,47 @@ impl<'src> Parser<'src> {
                     continue;
                 }
 
+                let colcol_lbrace_span = self.current_span();
                 if self.eat(TokenKind::LBrace) {
                     let inner = match self.parse_expr() {
-                        Some(e) => e,
+                        Some(e) => {
+                            let mut expr_end = e.span().end;
+                            self.expect_or_err(
+                                TokenKind::RBrace,
+                                &mut expr_end,
+                            );
+                            e
+                        },
                         None => {
                             self.error_and_recover(
-                                "expected expression after '{' in '::{...}'",
-                                &[TokenKind::RBrace],
+                                Diagnostic::error_from_code(
+                                    ParseDiagnosticCode::ExpectedExpression,
+                                    Span::at(colcol_lbrace_span.end),
+                                ),
+                                &[TokenKind::RBrace, TokenKind::Semicolon],
                             );
-                            let fake = self.prev_span().unwrap_or(base.span());
-                            Expr::Error { span: fake }
+                            let _rbrace = self.eat(TokenKind::RBrace);
+                            Expr::Error {
+                                span: Span::at(colcol_lbrace_span.end),
+                            }
                         },
                     };
-                    let _rbrace = self.expect(
-                        TokenKind::RBrace,
-                        "expected '}' after '::{expr}'",
-                    );
 
                     base = self.finish_dynamic_static_member(class_ref, inner);
 
                     continue;
                 }
 
+                let member_span = self.current_span();
                 let member_token = match self
                     .expect_member_after_op_or_sync(true, SYNC_POSTFIX)
                 {
                     Some(token) => token,
-                    None => return Some(base),
+                    None => {
+                        return Some(Expr::Error {
+                            span: Span::at(member_span.start),
+                        })
+                    },
                 };
 
                 let member_ident = Ident {
@@ -949,19 +959,9 @@ impl<'src> Parser<'src> {
         Some(base)
     }
 
-    fn make_class_name_ref(&self, expr: &Expr) -> Option<ClassNameRef> {
-        match expr {
-            Expr::VarRef { name, span } => {
-                let class_ident = Ident { span: name.span };
-
-                let qn = QualifiedName {
-                    absolute: false,
-                    parts: vec![class_ident],
-                    span: *span,
-                };
-                Some(ClassNameRef::Qualified(qn))
-            },
-
+    fn make_class_name_ref(&self, expr: Expr) -> (ClassNameRef, Span) {
+        let span = expr.span();
+        let class_ref = match expr {
             Expr::ConstFetch { name, span } => {
                 let parts: Vec<Ident> = name
                     .parts
@@ -969,24 +969,26 @@ impl<'src> Parser<'src> {
                     .map(|id| Ident { span: id.span })
                     .collect();
 
-                Some(ClassNameRef::Qualified(QualifiedName {
+                ClassNameRef::Qualified(QualifiedName {
                     absolute: name.absolute,
                     parts,
-                    span: *span,
-                }))
+                    span,
+                })
             },
 
-            _ => None,
-        }
+            other => ClassNameRef::Dynamic(Box::new(other)),
+        };
+        (class_ref, span)
     }
 
     #[inline]
     fn expect_ident_or_sync(
         &mut self,
-        msg: &'static str,
+        last_end: u32,
         sync: &[TokenKind],
     ) -> Option<&'src Token> {
-        if let Some(token) = self.expect_ident(msg) {
+        let mut le = last_end;
+        if let Some(token) = self.expect_ident_or_err(&mut le) {
             Some(token)
         } else {
             self.recover_to_any(sync);
@@ -997,7 +999,15 @@ impl<'src> Parser<'src> {
     fn parse_qualified_expr(&mut self) -> Option<Expr> {
         debug_assert!(self.at(TokenKind::Backslash));
 
-        let qn = self.parse_qualified_name("expected name")?;
+        let backslash_span = self.current_span();
+        let qn = match self.parse_qualified_name() {
+            Some(qn) => qn,
+            None => {
+                return Some(Expr::Error {
+                    span: Span::at(backslash_span.end),
+                });
+            },
+        };
         let span = qn.span;
 
         Some(Expr::ConstFetch { name: qn, span })
@@ -1012,20 +1022,11 @@ impl<'src> Parser<'src> {
         if allow_class_keyword && self.at(TokenKind::KwClass) {
             return Some(self.bump());
         }
-        if let Some(token) = self.bump_ident_like() {
+        if let Some(token) = self.expect_ident() {
             return Some(token);
         }
         self.recover_to_any(sync);
         None
-    }
-
-    #[inline]
-    pub(crate) fn bump_ident_like(&mut self) -> Option<&'src Token> {
-        match self.kind() {
-            TokenKind::Ident => Some(self.bump()),
-            k if self.is_ident_like_kw(k) => Some(self.bump()),
-            _ => None,
-        }
     }
 
     fn finish_dynamic_object_member(
@@ -1061,8 +1062,8 @@ impl<'src> Parser<'src> {
         FCall: FnOnce(Expr, Ident, Vec<crate::ast::Arg>, Span) -> Expr,
         FFetch: FnOnce(Expr, Ident, Span) -> Expr,
     {
+        let lp = self.current_span();
         if self.eat(TokenKind::LParen) {
-            let lp = self.prev_span().unwrap();
             let (args, rp) = self.parse_call_arguments(lp);
             let span = Span {
                 start: base.span().start,
@@ -1089,8 +1090,8 @@ impl<'src> Parser<'src> {
         FCall: FnOnce(Expr, Expr, Vec<crate::ast::Arg>, Span) -> Expr,
         FFetch: FnOnce(Expr, Expr, Span) -> Expr,
     {
+        let lp = self.current_span();
         if self.eat(TokenKind::LParen) {
-            let lp = self.prev_span().unwrap();
             let (args, rp) = self.parse_call_arguments(lp);
             let span = Span {
                 start: base.span().start,
@@ -1111,8 +1112,8 @@ impl<'src> Parser<'src> {
         class_ref: ClassNameRef,
         member_ident: Ident,
     ) -> Expr {
+        let lp = self.current_span();
         if self.eat(TokenKind::LParen) {
-            let lp = self.prev_span().unwrap();
             let (args, rp) = self.parse_call_arguments(lp);
             let span = Span {
                 start: member_ident.span.start.saturating_sub(1),
@@ -1142,8 +1143,8 @@ impl<'src> Parser<'src> {
         class_ref: ClassNameRef,
         dyn_expr: Expr,
     ) -> Expr {
+        let lp = self.current_span();
         if self.eat(TokenKind::LParen) {
-            let lp = self.prev_span().unwrap();
             let (args, rp) = self.parse_call_arguments(lp);
             let span = Span {
                 start: dyn_expr.span().start.saturating_sub(1),
@@ -1169,6 +1170,27 @@ impl<'src> Parser<'src> {
                 },
                 span,
             }
+        }
+    }
+
+    fn expect_closing_or_recover(
+        &mut self,
+        expected: TokenKind,
+        sync: &[TokenKind],
+    ) -> Option<u32> {
+        if self.at(expected) {
+            let tok = self.bump();
+            Some(tok.span.end)
+        } else {
+            let sp = self.current_span();
+            self.error_and_recover(
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(expected),
+                    sp,
+                ),
+                sync,
+            );
+            None
         }
     }
 }

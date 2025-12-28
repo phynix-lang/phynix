@@ -1,7 +1,7 @@
-use crate::ast::{ClassMember, Ident, Stmt};
+use crate::ast::{ClassMember, Stmt};
 use crate::parser::Parser;
+use phynix_core::token::TokenKind;
 use phynix_core::Span;
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_trait_stmt(&mut self) -> Option<Stmt> {
@@ -11,25 +11,9 @@ impl<'src> Parser<'src> {
         let trait_start = trait_token.span.start;
         let mut last_end = trait_token.span.end;
 
-        let trait_ident = if let Some(name_token) =
-            self.expect_ident("expected trait name after 'trait'")
-        {
-            last_end = name_token.span.end;
-            Ident {
-                span: name_token.span,
-            }
-        } else {
-            let fake = Span {
-                start: last_end,
-                end: last_end,
-            };
-            Ident { span: fake }
-        };
+        let trait_ident = self.expect_ident_ast_or_err(&mut last_end);
 
-        let lbrace_token =
-            self.expect(TokenKind::LBrace, "expected '{' to start trait body");
-
-        if lbrace_token.is_none() {
+        if !self.expect_or_err(TokenKind::LBrace, &mut last_end) {
             let span = Span {
                 start: trait_start,
                 end: last_end,
@@ -41,8 +25,7 @@ impl<'src> Parser<'src> {
             });
         }
 
-        let lbrace_token = lbrace_token.unwrap();
-        let body_end = self.consume_brace_body(lbrace_token.span.end);
+        let body_end = self.consume_brace_body(last_end);
 
         let trait_span = Span {
             start: trait_start,

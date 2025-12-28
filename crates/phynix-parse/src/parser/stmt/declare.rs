@@ -1,8 +1,9 @@
 use crate::ast::Stmt;
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(super) fn parse_declare_stmt(&mut self) -> Option<Stmt> {
@@ -12,11 +13,7 @@ impl<'src> Parser<'src> {
         let start_pos = declare_token.span.start;
         let mut last_end = declare_token.span.end;
 
-        let lparen_token =
-            self.expect(TokenKind::LParen, "expected '(' after declare");
-        if let Some(lp) = lparen_token.as_ref() {
-            last_end = lp.span.end;
-        } else {
+        if !self.expect_or_err(TokenKind::LParen, &mut last_end) {
             return Some(Stmt::Declare {
                 strict_types: None,
                 span: Span {
@@ -26,6 +23,7 @@ impl<'src> Parser<'src> {
             });
         }
 
+        let lparen_span = Span::at(last_end);
         let (dir_name_text, _dir_name_span) = match self.peek() {
             Some(token) if matches!(token.kind, TokenKind::Ident) => {
                 let name_token = self.bump();
@@ -35,21 +33,15 @@ impl<'src> Parser<'src> {
                 (Some(text), span)
             },
             _ => {
-                self.error_here(
+                self.error(Diagnostic::error_from_code(
                     ParseDiagnosticCode::ExpectedIdent,
-                    "expected directive name in declare(...)",
-                );
-                (None, lparen_token.unwrap().span)
+                    Span::at(last_end),
+                ));
+                (None, lparen_span)
             },
         };
 
-        let saw_eq = self.eat(TokenKind::Eq);
-        if !saw_eq {
-            self.error_here(
-                ParseDiagnosticCode::ExpectedToken,
-                "expected '=' after directive name",
-            );
-        }
+        let saw_eq = self.expect_or_err(TokenKind::Eq, &mut last_end);
 
         let mut int_text_opt: Option<&str> = None;
         if let Some(token) = self.peek() {
@@ -59,10 +51,10 @@ impl<'src> Parser<'src> {
                 int_text_opt = Some(self.slice(&int_token));
             } else {
                 if saw_eq {
-                    self.error_here(
+                    self.error(Diagnostic::error_from_code(
                         ParseDiagnosticCode::ExpectedIntLiteral,
-                        "expected integer literal after '='",
-                    );
+                        Span::at(last_end),
+                    ));
                 }
             }
         }
@@ -75,11 +67,7 @@ impl<'src> Parser<'src> {
             None
         };
 
-        let rparen_token =
-            self.expect(TokenKind::RParen, "expected ')' after declare(...)");
-        if let Some(rp) = rparen_token.as_ref() {
-            last_end = rp.span.end;
-        }
+        self.expect_or_err(TokenKind::RParen, &mut last_end);
 
         if self.eat(TokenKind::LBrace) {
             let mut depth = 1;
@@ -107,13 +95,7 @@ impl<'src> Parser<'src> {
                 }
             }
         } else {
-            let semi_token = self.expect(
-                TokenKind::Semicolon,
-                "expected ';' after declare(...)",
-            );
-            if let Some(semi) = semi_token.as_ref() {
-                last_end = semi.span.end;
-            } else {
+            if !self.expect_or_err(TokenKind::Semicolon, &mut last_end) {
                 self.recover_to_any(&[
                     TokenKind::Semicolon,
                     TokenKind::RBrace,

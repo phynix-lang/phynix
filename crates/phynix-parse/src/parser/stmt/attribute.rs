@@ -1,7 +1,9 @@
 use crate::ast::{Attribute, AttributeArg, AttributeGroup, Ident};
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
+use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
-use phynix_lex::TokenKind;
 
 impl<'src> Parser<'src> {
     pub(crate) fn parse_attribute_group_list(
@@ -49,12 +51,14 @@ impl<'src> Parser<'src> {
             }
 
             let attr_start = self.current_span().start;
+            let last_end = attr_start;
 
-            let Some(name) =
-                self.parse_qualified_name("expected attribute name")
-            else {
+            let Some(name) = self.parse_qualified_name() else {
                 self.error_and_recover(
-                    "expected attribute name",
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        Span::at(last_end),
+                    ),
                     &[TokenKind::Comma, TokenKind::RBracket],
                 );
                 if self.at(TokenKind::RBracket) {
@@ -73,66 +77,48 @@ impl<'src> Parser<'src> {
                     loop {
                         let arg_start = self.current_span().start;
 
-                        if (self.at(TokenKind::Ident)
+                        let (name, expr_err_span) = if (self
+                            .at(TokenKind::Ident)
                             || self.is_ident_like_kw(self.kind()))
                             && self.at_nth(1, TokenKind::Colon)
                         {
-                            let name_tok = self.expect_ident(
-                                "expected identifier in named attribute argument",
-                            );
-                            let _colon = self.bump();
+                            let name_tok = self.expect_ident();
+                            let colon = self.bump();
+                            (Some(name_tok?), colon.span.end)
+                        } else {
+                            (None, arg_start)
+                        };
 
-                            let Some(expr) = self.parse_expr() else {
-                                self.error_and_recover(
-                                    "expected expression after named-arg ':' in attribute",
-                                    &[TokenKind::Comma, TokenKind::RParen],
-                                );
-                                if self.eat(TokenKind::Comma) {
-                                    if self.at(TokenKind::RParen) {
-                                        break;
-                                    }
-                                    continue;
+                        let Some(expr) = self.parse_expr() else {
+                            self.error(Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(expr_err_span),
+                            ));
+                            if self.eat(TokenKind::Comma) {
+                                if self.at(TokenKind::RParen) {
+                                    break;
                                 }
-                                break;
-                            };
+                                continue;
+                            }
+                            break;
+                        };
 
-                            let arg_end = expr.span().end;
-                            let name_tok = name_tok?;
-                            let name_ident = Ident {
-                                span: name_tok.span,
-                            };
+                        let arg_end = expr.span().end;
+                        let span = Span {
+                            start: arg_start,
+                            end: arg_end,
+                        };
 
+                        if let Some(name_tok) = name {
                             args.push(AttributeArg::Named {
-                                name: name_ident,
-                                expr,
-                                span: Span {
-                                    start: arg_start,
-                                    end: arg_end,
+                                name: Ident {
+                                    span: name_tok.span,
                                 },
+                                expr,
+                                span,
                             });
                         } else {
-                            let Some(expr) = self.parse_expr() else {
-                                self.error_and_recover(
-                                    "expected expression in attribute args",
-                                    &[TokenKind::Comma, TokenKind::RParen],
-                                );
-                                if self.eat(TokenKind::Comma) {
-                                    if self.at(TokenKind::RParen) {
-                                        break;
-                                    }
-                                    continue;
-                                }
-                                break;
-                            };
-
-                            let arg_end = expr.span().end;
-                            args.push(AttributeArg::Positional {
-                                expr,
-                                span: Span {
-                                    start: arg_start,
-                                    end: arg_end,
-                                },
-                            });
+                            args.push(AttributeArg::Positional { expr, span });
                         }
 
                         if self.eat(TokenKind::Comma) {
@@ -146,14 +132,12 @@ impl<'src> Parser<'src> {
                     }
                 }
 
-                let _ = self.expect(
-                    TokenKind::RParen,
-                    "expected ')' in attribute args",
-                );
+                let mut rp_end = self.current_span().start;
+                self.expect_or_err(TokenKind::RParen, &mut rp_end);
             }
 
             let attr_end =
-                self.prev_span().map(|s| s.end).unwrap_or(attr_start);
+                self.current_span().start.saturating_sub(1).max(attr_start);
             attrs.push(Attribute {
                 name,
                 args,
@@ -166,25 +150,18 @@ impl<'src> Parser<'src> {
             if self.eat(TokenKind::LParen) {
                 if !self.at(TokenKind::RParen) {
                     loop {
+                        let inner_arg_start = self.current_span().start;
                         if (self.at(TokenKind::Ident)
                             || self.is_ident_like_kw(self.kind()))
                             && self.at_nth(1, TokenKind::Colon)
                         {
                             let _name = self.bump();
-                            let _colon = self.bump();
-                            if self.parse_expr().is_none() {
-                                self.error_and_recover(
-                                    "expected expression after named-arg ':' in attribute",
-                                    &[TokenKind::Comma, TokenKind::RParen],
-                                );
-                            }
+                            let colon = self.bump();
+                            let mut colon_end = colon.span.end;
+                            self.parse_expr_or_err(&mut colon_end);
                         } else {
-                            if self.parse_expr().is_none() {
-                                self.error_and_recover(
-                                    "expected expression in attribute args",
-                                    &[TokenKind::Comma, TokenKind::RParen],
-                                );
-                            }
+                            let mut arg_start = inner_arg_start;
+                            self.parse_expr_or_err(&mut arg_start);
                         }
 
                         if self.eat(TokenKind::Comma) {
@@ -198,10 +175,8 @@ impl<'src> Parser<'src> {
                     }
                 }
 
-                let _ = self.expect(
-                    TokenKind::RParen,
-                    "expected ')' in attribute args",
-                );
+                let mut rp_end2 = self.current_span().start;
+                self.expect_or_err(TokenKind::RParen, &mut rp_end2);
             }
 
             if self.eat(TokenKind::Comma) {
@@ -215,8 +190,15 @@ impl<'src> Parser<'src> {
                 break;
             }
 
+            let err_pos = self.current_span().start;
             self.error_and_recover(
-                "expected ',' or ']' after attribute",
+                Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_tokens([
+                        TokenKind::Comma,
+                        TokenKind::RBracket,
+                    ]),
+                    Span::at(err_pos),
+                ),
                 &[TokenKind::Comma, TokenKind::RBracket],
             );
             if self.at(TokenKind::RBracket) {
@@ -224,18 +206,16 @@ impl<'src> Parser<'src> {
             }
         }
 
-        let end_span = if let Some(close_token) = self.expect(
-            TokenKind::RBracket,
-            "expected ']' to close attribute group",
-        ) {
-            close_token.span
+        let mut rb_end = self.current_span().start;
+        let end = if self.expect_or_err(TokenKind::RBracket, &mut rb_end) {
+            rb_end
         } else {
-            start_span
+            start_span.end
         };
 
         let full_span = Span {
             start: start_span.start,
-            end: end_span.end,
+            end,
         };
 
         Some(AttributeGroup {
