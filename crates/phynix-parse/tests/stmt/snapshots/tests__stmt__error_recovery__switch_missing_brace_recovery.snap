@@ -1,6 +1,6 @@
 ---
 source: crates/phynix-parse/tests/stmt/error_recovery.rs
-assertion_line: 31
+assertion_line: 10
 expression: "(script, diags)"
 ---
 - items:
@@ -37,6 +37,20 @@ expression: "(script, diags)"
     span:
       start: 18
       end: 22
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - Semicolon
+    message: "expected ';'"
+    severity: Error
+    span:
+      start: 24
+      end: 24
     labels: []
     notes: []
     help: ~

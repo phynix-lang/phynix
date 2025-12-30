@@ -219,7 +219,7 @@ impl<'src> Parser<'src> {
             let end = rp_span.end;
             self.error(Diagnostic::error_from_code(
                 ParseDiagnosticCode::ExpectedIdent,
-                Span { start, end },
+                Span::at(lp_end),
             ));
             return Some(Expr::Isset {
                 exprs,

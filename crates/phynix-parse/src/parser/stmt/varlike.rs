@@ -36,7 +36,8 @@ impl<'src> Parser<'src> {
 
         let mut maybe_type: Option<TypeRef> = None;
         if self.eat(TokenKind::Colon) {
-            let colon_end = self.current_span().start;
+            let colon_tok = self.bump();
+            let colon_end = colon_tok.span.end;
             if let Some(qn) = self.parse_qualified_name() {
                 let ty_span = qn.span;
                 last_end = ty_span.end;

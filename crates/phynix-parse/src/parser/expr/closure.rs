@@ -59,17 +59,20 @@ impl<'src> Parser<'src> {
                         (var_token.span, var_token.span)
                     } else if self.at(TokenKind::Dollar) {
                         let dollar_tok = self.bump();
-                        last_end = dollar_tok.span.end;
+                        let dollar_end = dollar_tok.span.end;
+                        let mut dollar_end_mut = dollar_end;
 
-                        match self.expect_ident_or_err(&mut last_end) {
+                        match self.expect_ident_or_err(&mut dollar_end_mut) {
                             Some(name_tok) => {
+                                last_end = name_tok.span.end;
                                 let span = Span {
                                     start: dollar_tok.span.start,
-                                    end: name_tok.span.end,
+                                    end: last_end,
                                 };
                                 (name_tok.span, span)
                             },
                             None => {
+                                last_end = dollar_end_mut;
                                 self.error_and_recover(
                                     Diagnostic::error_from_code(
                                         ParseDiagnosticCode::ExpectedIdent,

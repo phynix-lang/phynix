@@ -73,6 +73,8 @@ impl<'src> Parser<'src> {
             let mut args = Vec::new();
 
             if self.eat(TokenKind::LParen) {
+                let lp_tok = self.bump();
+                let lp_end = lp_tok.span.end;
                 if !self.at(TokenKind::RParen) {
                     loop {
                         let arg_start = self.current_span().start;
@@ -86,7 +88,7 @@ impl<'src> Parser<'src> {
                             let colon = self.bump();
                             (Some(name_tok?), colon.span.end)
                         } else {
-                            (None, arg_start)
+                            (None, arg_start.max(lp_end))
                         };
 
                         let Some(expr) = self.parse_expr() else {
@@ -148,6 +150,8 @@ impl<'src> Parser<'src> {
             });
 
             if self.eat(TokenKind::LParen) {
+                let lp_tok = self.bump();
+                let lp_end = lp_tok.span.end;
                 if !self.at(TokenKind::RParen) {
                     loop {
                         let inner_arg_start = self.current_span().start;
@@ -160,7 +164,7 @@ impl<'src> Parser<'src> {
                             let mut colon_end = colon.span.end;
                             self.parse_expr_or_err(&mut colon_end);
                         } else {
-                            let mut arg_start = inner_arg_start;
+                            let mut arg_start = inner_arg_start.max(lp_end);
                             self.parse_expr_or_err(&mut arg_start);
                         }
 

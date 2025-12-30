@@ -14,14 +14,17 @@ impl<'src> Parser<'src> {
         let start_pos = kw_token.span.start;
 
         let target_expr = if self.eat(TokenKind::LParen) {
-            let last_end = self.current_span().start;
+            let lp_tok = self.bump();
+            let lp_end = lp_tok.span.end;
+            let last_end = lp_end;
             let inner_expr = match self.parse_expr() {
                 Some(mut expr) => {
                     loop {
-                        if !self.eat(TokenKind::Comma) {
+                        if !self.at(TokenKind::Comma) {
                             break;
                         }
-                        let comma_end = self.current_span().start;
+                        let comma_tok = self.bump();
+                        let comma_end = comma_tok.span.end;
 
                         match self.parse_expr() {
                             Some(next) => {

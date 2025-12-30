@@ -1,0 +1,21 @@
+---
+source: crates/phynix-parse/tests/stmt/error_span_tests.rs
+assertion_line: 7
+expression: "(script, diags)"
+---
+- items:
+    - ExprStmt:
+        expr:
+          Isset:
+            exprs: []
+- - code:
+      Parse: ExpectedIdent
+    message: expected identifier
+    severity: Error
+    span:
+      start: 12
+      end: 12
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

@@ -84,7 +84,7 @@ impl<'src> Parser<'src> {
         };
 
         while let Some(comma) = self.expect(TokenKind::Comma) {
-            let last_end = comma.span.end;
+            let mut last_end = comma.span.end;
             if self.at_any(terminators) {
                 self.error(Diagnostic::error_from_code(
                     ParseDiagnosticCode::ExpectedExpression,
@@ -95,6 +95,7 @@ impl<'src> Parser<'src> {
 
             match self.parse_expr() {
                 Some(e) => {
+                    last_end = e.span().end;
                     last_expr = e;
                 },
                 None => {

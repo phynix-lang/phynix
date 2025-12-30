@@ -1,5 +1,7 @@
 use crate::ast::Stmt;
 use crate::parser::Parser;
+use phynix_core::diagnostics::parser::ParseDiagnosticCode;
+use phynix_core::diagnostics::Diagnostic;
 use phynix_core::token::TokenKind;
 use phynix_core::{Span, Spanned};
 
@@ -25,6 +27,10 @@ impl<'src> Parser<'src> {
                 let span = expr.span();
                 Span::at(span.end)
             } else {
+                self.error(Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::Semicolon),
+                    Span::at(expr.span().end),
+                ));
                 self.recover_to_any(&[
                     TokenKind::Semicolon,
                     TokenKind::RBrace,

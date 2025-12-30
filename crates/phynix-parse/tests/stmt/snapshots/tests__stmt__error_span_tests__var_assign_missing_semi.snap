@@ -1,0 +1,30 @@
+---
+source: crates/phynix-parse/tests/stmt/error_span_tests.rs
+assertion_line: 6
+expression: "(script, diags)"
+---
+- items:
+    - ExprStmt:
+        expr:
+          Assign:
+            target:
+              VarRef:
+                name: {}
+            value:
+              IntLiteral:
+                value: 1
+    - Noop: {}
+- - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - Semicolon
+    message: "expected ';'"
+    severity: Error
+    span:
+      start: 12
+      end: 12
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

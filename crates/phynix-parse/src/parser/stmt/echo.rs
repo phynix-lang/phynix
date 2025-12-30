@@ -16,6 +16,7 @@ impl<'src> Parser<'src> {
         let mut exprs = Vec::new();
 
         if let Some(first) = self.parse_expr() {
+            last_end = first.span().end;
             exprs.push(first);
 
             loop {
@@ -26,6 +27,7 @@ impl<'src> Parser<'src> {
                 last_end = comma_span.end;
 
                 if let Some(next) = self.parse_expr() {
+                    last_end = next.span().end;
                     exprs.push(next);
                 } else {
                     self.error(Diagnostic::error_from_code(

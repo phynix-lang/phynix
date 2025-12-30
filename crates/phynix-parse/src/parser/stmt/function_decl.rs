@@ -285,6 +285,7 @@ impl<'src> Parser<'src> {
 
     fn recover_stmt_in_block(&mut self) {
         let start_pos = self.pos;
+        let err_pos = self.current_span().start;
 
         const MEMBER_KEYS: &[TokenKind] = &[
             TokenKind::KwPublic,
@@ -340,6 +341,10 @@ impl<'src> Parser<'src> {
         }
 
         if self.pos == start_pos && !self.eof() {
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::ExpectedStatement,
+                Span::at(err_pos),
+            ));
             self.bump();
         }
     }

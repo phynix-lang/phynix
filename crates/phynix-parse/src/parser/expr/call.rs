@@ -27,8 +27,8 @@ impl<'src> Parser<'src> {
         };
 
         if self.at(TokenKind::ColCol) {
-            let colcol_end = self.current_span().end;
-            self.bump();
+            let colcol_tok = self.bump();
+            let colcol_end = colcol_tok.span.end;
             let class_name = ClassNameRef::Qualified(qn);
 
             if self.at(TokenKind::KwClass) {
@@ -62,11 +62,11 @@ impl<'src> Parser<'src> {
             }
 
             if self.at(TokenKind::Dollar) {
-                let dollar_end = self.current_span().end;
-                self.bump();
+                let dollar_tok = self.bump();
+                let dollar_end = dollar_tok.span.end;
                 if self.at(TokenKind::LBrace) {
-                    let lbrace_end = self.current_span().end;
-                    self.bump();
+                    let lbrace_tok = self.bump();
+                    let lbrace_end = lbrace_tok.span.end;
 
                     let inner = self.parse_braced_expr_or_error(
                         lbrace_end,
@@ -110,8 +110,8 @@ impl<'src> Parser<'src> {
             }
 
             if self.at(TokenKind::LBrace) {
-                let lbrace_end = self.current_span().end;
-                self.bump();
+                let lbrace_tok = self.bump();
+                let lbrace_end = lbrace_tok.span.end;
 
                 let inner = self.parse_braced_expr_or_error(
                     lbrace_end,

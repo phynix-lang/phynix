@@ -223,13 +223,13 @@ impl<'src> Parser<'src> {
                 });
             }
 
-            let colon_span = self.current_span();
-            let _ = self.bump();
+            let colon_tok = self.bump();
+            let colon_end = colon_tok.span.end;
 
             let else_expr = self
                 .parse_or_err(
                     ParseDiagnosticCode::ExpectedExpression,
-                    Span::at(colon_span.end),
+                    Span::at(colon_end),
                     |p| p.parse_conditional_expr(),
                 )
                 .unwrap_or_else(|s| Expr::Error { span: s });
