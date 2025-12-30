@@ -468,25 +468,19 @@ impl<'src> Parser<'src> {
             let kw = self.bump();
             let start = kw.span.start;
 
+            let mut end = kw.span.end;
+
             let arg_opt = if self.at(TokenKind::LParen) {
-                let lparen = self.bump();
-                if self.eat(TokenKind::RParen) {
+                let _lparen = self.bump();
+                if self.at(TokenKind::RParen) {
+                    end = self.bump().span.end;
                     None
                 } else {
                     let expr = self.parse_expr();
-                    if expr.is_none() {
-                        self.error(Diagnostic::error_from_code(
-                            ParseDiagnosticCode::ExpectedExpression,
-                            Span::at(lparen.span.end),
-                        ));
-                        self.recover_to_any(&[
-                            TokenKind::RParen,
-                            TokenKind::Semicolon,
-                        ]);
-                        let _ = self.eat(TokenKind::RParen);
-                        let mut rp_end = expr.as_ref().unwrap().span().end;
-                        self.expect_or_err(TokenKind::RParen, &mut rp_end);
+                    if let Some(ref e) = expr {
+                        end = e.span().end;
                     }
+                    self.expect_or_err(TokenKind::RParen, &mut end);
                     expr
                 }
             } else if self.at_any(&[
@@ -500,13 +494,13 @@ impl<'src> Parser<'src> {
             ]) {
                 None
             } else {
-                self.parse_expr()
+                let expr = self.parse_expr();
+                if let Some(ref e) = expr {
+                    end = e.span().end;
+                }
+                expr
             };
 
-            let end = arg_opt
-                .as_ref()
-                .map(|e| e.span().end)
-                .unwrap_or(kw.span.end);
             return Some(Expr::Exit {
                 arg: arg_opt.map(Box::new),
                 span: Span { start, end },

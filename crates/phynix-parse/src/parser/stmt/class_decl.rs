@@ -1,5 +1,5 @@
 use crate::ast::{
-    ClassFlags, ClassMember, ClassNameRef, QualifiedName, Stmt,
+    AttributeGroup, ClassFlags, ClassMember, ClassNameRef, QualifiedName, Stmt,
 };
 use crate::parser::Parser;
 use phynix_core::token::TokenKind;
@@ -9,6 +9,7 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_class_stmt(
         &mut self,
         flags: ClassFlags,
+        attributes: Vec<AttributeGroup>,
     ) -> Option<Stmt> {
         debug_assert!(self.at(TokenKind::KwClass));
 
@@ -50,6 +51,7 @@ impl<'src> Parser<'src> {
                 extends: extends_name,
                 implements: implements_list,
                 body: Vec::<ClassMember>::new(),
+                attributes,
                 span,
             });
         }
@@ -69,6 +71,7 @@ impl<'src> Parser<'src> {
             extends: extends_name,
             implements: implements_list,
             body: Vec::<ClassMember>::new(),
+            attributes,
             span: class_span,
         })
     }

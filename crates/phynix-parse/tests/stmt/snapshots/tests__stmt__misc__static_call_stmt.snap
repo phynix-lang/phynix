@@ -1,0 +1,15 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        StaticCall:
+          class:
+            Qualified:
+              absolute: false
+              parts:
+                - {}
+          method: {}
+          args: []

@@ -72,7 +72,7 @@ impl<'src> Parser<'src> {
 
             let mut args = Vec::new();
 
-            if self.eat(TokenKind::LParen) {
+            if self.at(TokenKind::LParen) {
                 let lp_tok = self.bump();
                 let lp_end = lp_tok.span.end;
                 if !self.at(TokenKind::RParen) {
@@ -148,40 +148,6 @@ impl<'src> Parser<'src> {
                     end: attr_end,
                 },
             });
-
-            if self.eat(TokenKind::LParen) {
-                let lp_tok = self.bump();
-                let lp_end = lp_tok.span.end;
-                if !self.at(TokenKind::RParen) {
-                    loop {
-                        let inner_arg_start = self.current_span().start;
-                        if (self.at(TokenKind::Ident)
-                            || self.is_ident_like_kw(self.kind()))
-                            && self.at_nth(1, TokenKind::Colon)
-                        {
-                            let _name = self.bump();
-                            let colon = self.bump();
-                            let mut colon_end = colon.span.end;
-                            self.parse_expr_or_err(&mut colon_end);
-                        } else {
-                            let mut arg_start = inner_arg_start.max(lp_end);
-                            self.parse_expr_or_err(&mut arg_start);
-                        }
-
-                        if self.eat(TokenKind::Comma) {
-                            if self.at(TokenKind::RParen) {
-                                break;
-                            }
-                            continue;
-                        }
-
-                        break;
-                    }
-                }
-
-                let mut rp_end2 = self.current_span().start;
-                self.expect_or_err(TokenKind::RParen, &mut rp_end2);
-            }
 
             if self.eat(TokenKind::Comma) {
                 if self.at(TokenKind::RBracket) {

@@ -46,10 +46,10 @@ impl<'src> Parser<'src> {
             return None;
         }
 
-        let _attrs = if self.at(TokenKind::AttrOpen) {
-            Some(self.parse_attribute_group_list()?)
+        let attrs = if self.at(TokenKind::AttrOpen) {
+            self.parse_attribute_group_list().unwrap_or_default()
         } else {
-            None
+            Vec::new()
         };
 
         if self.at_any(&[
@@ -63,7 +63,7 @@ impl<'src> Parser<'src> {
             let flags = self.parse_class_flags();
 
             if self.at(TokenKind::KwClass) {
-                return self.parse_class_stmt(flags);
+                return self.parse_class_stmt(flags, attrs);
             }
 
             self.pos = save_pos;
@@ -225,11 +225,12 @@ impl<'src> Parser<'src> {
             TokenKind::KwPublic,
             TokenKind::KwPrivate,
             TokenKind::KwProtected,
-            TokenKind::KwStatic,
             TokenKind::KwAbstract,
             TokenKind::KwFinal,
             TokenKind::KwReadonly,
-        ]) {
+        ]) || (self.at(TokenKind::KwStatic)
+            && !self.at_nth(1, TokenKind::ColCol))
+        {
             return None;
         }
 

@@ -13,7 +13,7 @@ impl<'src> Parser<'src> {
         let kw_token = self.bump();
         let start_pos = kw_token.span.start;
 
-        let target_expr = if self.eat(TokenKind::LParen) {
+        let target_expr = if self.at(TokenKind::LParen) {
             let lp_tok = self.bump();
             let lp_end = lp_tok.span.end;
             let last_end = lp_end;

@@ -1,0 +1,41 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        FunctionCall:
+          callee:
+            MethodCall:
+              target:
+                Parenthesized:
+                  inner:
+                    Closure:
+                      is_static: false
+                      params: []
+                      uses: []
+                      return_type: ~
+                      body:
+                        items:
+                          - ExprStmt:
+                              expr:
+                                StaticCall:
+                                  class:
+                                    Qualified:
+                                      absolute: false
+                                      parts:
+                                        - {}
+                                  method: {}
+                                  args: []
+              method: {}
+              args:
+                - name: ~
+                  unpack: false
+                  expr:
+                    NameRef:
+                      name:
+                        absolute: false
+                        parts:
+                          - {}
+          args: []

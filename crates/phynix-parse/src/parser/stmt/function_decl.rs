@@ -249,6 +249,11 @@ impl<'src> Parser<'src> {
         let mut body_end = lbrace_start;
 
         while !self.eof() && depth > 0 {
+            if self.at(TokenKind::PhpClose) || self.at(TokenKind::HtmlChunk) {
+                self.bounce_out_of_php();
+                continue;
+            }
+
             if self.at(TokenKind::RBrace) {
                 let rbrace = self.bump();
                 depth -= 1;

@@ -1,6 +1,6 @@
 use crate::ast::{
-    CatchClause, ClassFlags, ClassMember, ClassNameRef, Expr, Ident, Param,
-    QualifiedName, SwitchCase, TypeRef, UseImport,
+    AttributeGroup, CatchClause, ClassFlags, ClassMember, ClassNameRef, Expr,
+    Ident, Param, QualifiedName, SwitchCase, TypeRef, UseImport,
 };
 use phynix_core::{Span, Spanned};
 use serde::Serialize;
@@ -85,6 +85,7 @@ pub enum Stmt {
         extends: Option<QualifiedName>,
         implements: Vec<QualifiedName>,
         body: Vec<ClassMember>,
+        attributes: Vec<AttributeGroup>,
         #[serde(skip)]
         span: Span,
     },
