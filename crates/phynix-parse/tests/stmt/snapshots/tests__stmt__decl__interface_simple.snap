@@ -1,0 +1,10 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+assertion_line: 37
+expression: script
+---
+items:
+  - Interface:
+      name: {}
+      extends: []
+      body: []

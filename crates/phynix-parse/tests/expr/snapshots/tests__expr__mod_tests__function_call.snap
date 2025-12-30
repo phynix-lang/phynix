@@ -1,0 +1,26 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 20
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        FunctionCall:
+          callee:
+            NameRef:
+              name:
+                absolute: false
+                parts:
+                  - {}
+          args:
+            - name: ~
+              unpack: false
+              expr:
+                IntLiteral:
+                  value: 1
+            - name: ~
+              unpack: false
+              expr:
+                IntLiteral:
+                  value: 2

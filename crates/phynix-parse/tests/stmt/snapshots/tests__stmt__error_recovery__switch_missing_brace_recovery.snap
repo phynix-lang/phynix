@@ -1,0 +1,54 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 31
+expression: "(script, diags)"
+---
+- items:
+    - Switch:
+        cond:
+          VarRef:
+            name: {}
+        cases: []
+    - ExprStmt:
+        expr:
+          IntLiteral:
+            value: 1
+    - Noop: {}
+    - Noop: {}
+- - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - LBrace
+            - Colon
+    message: "expected '{' or ':'"
+    severity: Error
+    span:
+      start: 17
+      end: 17
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse: UnexpectedToken
+    message: unexpected token at top level
+    severity: Error
+    span:
+      start: 18
+      end: 22
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse: UnexpectedToken
+    message: unexpected token at top level
+    severity: Error
+    span:
+      start: 34
+      end: 43
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

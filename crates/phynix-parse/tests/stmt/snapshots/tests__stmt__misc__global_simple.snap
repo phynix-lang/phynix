@@ -1,0 +1,7 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 35
+expression: script
+---
+items:
+  - Global: {}

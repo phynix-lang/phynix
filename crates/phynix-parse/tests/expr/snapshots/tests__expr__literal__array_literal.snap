@@ -1,0 +1,25 @@
+---
+source: crates/phynix-parse/tests/expr/literal.rs
+assertion_line: 30
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        ArrayLiteral:
+          items:
+            - key: ~
+              value:
+                IntLiteral:
+                  value: 1
+              unpack: false
+            - key: ~
+              value:
+                IntLiteral:
+                  value: 2
+              unpack: false
+            - key: ~
+              value:
+                IntLiteral:
+                  value: 3
+              unpack: false

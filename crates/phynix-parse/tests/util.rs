@@ -1,7 +1,7 @@
 use phynix_core::diagnostics::Diagnostic;
 use phynix_core::{LanguageKind, Strictness};
 use phynix_lex::lex;
-use phynix_parse::ast::{Block, Expr, Script, Stmt};
+use phynix_parse::ast::Script;
 use phynix_parse::parser::Parser;
 
 pub fn parse_ok(src: &str) -> Script {
@@ -26,43 +26,41 @@ pub fn parse(src: &str) -> (Script, Vec<Diagnostic>) {
     .parse_script()
 }
 
-pub fn assert_single_stmt(script: &Script) -> &Stmt {
-    assert_eq!(
-        script.items.len(),
-        1,
-        "expected exactly 1 top-level stmt, script: {:#?}",
-        script
-    );
-    &script.items[0]
+#[macro_export]
+macro_rules! assert_script_snapshot {
+    ($src:expr) => {
+        let script = $crate::util::parse_ok($src);
+        insta::assert_yaml_snapshot!(script);
+    };
 }
 
-pub fn assert_if_stmt(
-    stmt: &Stmt,
-) -> (&Expr, &Block, &Vec<(Expr, Block)>, Option<&Block>) {
-    match stmt {
-        Stmt::If {
-            cond,
-            then_block,
-            else_if_blocks,
-            else_block,
-            ..
-        } => (cond, then_block, else_if_blocks, else_block.as_ref()),
-        other => panic!("expected Stmt::If, got: {other:#?}"),
-    }
+#[macro_export]
+macro_rules! test_stmt {
+    ($name:ident, $src:expr) => {
+        #[test]
+        fn $name() {
+            $crate::assert_script_snapshot!($src);
+        }
+    };
 }
 
-pub fn assert_block_len(block: &Block, n: usize, label: &str) {
-    assert_eq!(
-        block.items.len(),
-        n,
-        "{label} block items mismatch (expected {n}), block: {:#?}",
-        block
-    );
+#[macro_export]
+macro_rules! test_expr {
+    ($name:ident, $src:expr) => {
+        #[test]
+        fn $name() {
+            $crate::assert_script_snapshot!(concat!("<?php ", $src, ";"));
+        }
+    };
 }
 
-pub fn assert_echo_stmt(stmt: &Stmt) -> &Vec<Expr> {
-    match stmt {
-        Stmt::Echo { exprs, .. } => exprs,
-        other => panic!("expected Stmt::Echo, got: {other:#?}"),
-    }
+#[macro_export]
+macro_rules! test_error {
+    ($name:ident, $src:expr) => {
+        #[test]
+        fn $name() {
+            let (script, diags) = $crate::util::parse($src);
+            insta::assert_yaml_snapshot!((script, diags));
+        }
+    };
 }

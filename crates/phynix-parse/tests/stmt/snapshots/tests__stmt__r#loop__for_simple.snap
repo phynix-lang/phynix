@@ -1,0 +1,35 @@
+---
+source: crates/phynix-parse/tests/stmt/loop.rs
+assertion_line: 20
+expression: script
+---
+items:
+  - For:
+      init:
+        Assign:
+          target:
+            VarRef:
+              name: {}
+          value:
+            IntLiteral:
+              value: 0
+      cond:
+        BinaryOp:
+          op: CmpLt
+          left:
+            VarRef:
+              name: {}
+          right:
+            IntLiteral:
+              value: 10
+      increment:
+        PostfixInc:
+          target:
+            VarRef:
+              name: {}
+      body:
+        items:
+          - Echo:
+              exprs:
+                - VarRef:
+                    name: {}

@@ -1,0 +1,10 @@
+---
+source: crates/phynix-parse/tests/stmt/echo.rs
+assertion_line: 5
+expression: script
+---
+items:
+  - Echo:
+      exprs:
+        - IntLiteral:
+            value: 1

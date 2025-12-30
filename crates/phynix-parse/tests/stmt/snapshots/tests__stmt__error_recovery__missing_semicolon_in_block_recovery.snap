@@ -1,0 +1,46 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 49
+expression: "(script, diags)"
+---
+- items:
+    - Echo:
+        exprs:
+          - IntLiteral:
+              value: 1
+- - code:
+      Parse: UnexpectedToken
+    message: unexpected token at top level
+    severity: Error
+    span:
+      start: 6
+      end: 7
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - Semicolon
+    message: "expected ';'"
+    severity: Error
+    span:
+      start: 12
+      end: 12
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse: UnexpectedToken
+    message: unexpected token at top level
+    severity: Error
+    span:
+      start: 23
+      end: 24
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

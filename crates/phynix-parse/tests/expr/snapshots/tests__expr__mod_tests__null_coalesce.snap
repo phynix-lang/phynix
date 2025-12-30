@@ -1,0 +1,16 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 47
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        BinaryOp:
+          op: NullCoalesce
+          left:
+            VarRef:
+              name: {}
+          right:
+            VarRef:
+              name: {}

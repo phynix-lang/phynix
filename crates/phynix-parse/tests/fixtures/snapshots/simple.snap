@@ -1,0 +1,29 @@
+---
+source: crates/phynix-parse/tests/tests.rs
+assertion_line: 24
+expression: script
+---
+items:
+  - Echo:
+      exprs:
+        - IntLiteral:
+            value: 1
+        - IntLiteral:
+            value: 2
+        - IntLiteral:
+            value: 3
+  - If:
+      cond:
+        NameRef:
+          name:
+            absolute: false
+            parts:
+              - {}
+      then_block:
+        items:
+          - Echo:
+              exprs:
+                - StringLiteral:
+                    style: DoubleQuoted
+      else_if_blocks: []
+      else_block: ~

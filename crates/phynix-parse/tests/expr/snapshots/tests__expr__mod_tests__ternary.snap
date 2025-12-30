@@ -1,0 +1,18 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 42
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        Ternary:
+          condition:
+            VarRef:
+              name: {}
+          then_expr:
+            VarRef:
+              name: {}
+          else_expr:
+            VarRef:
+              name: {}

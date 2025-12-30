@@ -4,53 +4,62 @@ use crate::ast::{
     StringStyle, TypeRef, UnOpKind,
 };
 use phynix_core::{Span, Spanned};
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Expr {
     /// 42, -7
     IntLiteral {
         value: i64,
+        #[serde(skip)]
         span: Span,
     },
 
     /// 3.14, 2.0e10
     FloatLiteral {
         value: f64,
+        #[serde(skip)]
         span: Span,
     },
 
     /// "string" or 'string'
     StringLiteral {
         style: StringStyle,
+        #[serde(skip)]
         span: Span,
     },
 
     /// true / false
     BoolLiteral {
         value: bool,
+        #[serde(skip)]
         span: Span,
     },
 
     /// null
     NullLiteral {
+        #[serde(skip)]
         span: Span,
     },
 
     /// [expr, expr2 => expr3, ...]
     ArrayLiteral {
         items: Vec<ArrayItemExpr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// $foo
     VarRef {
         name: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
     /// $$foo, ${$bar}
     VariableVariable {
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -58,12 +67,14 @@ pub enum Expr {
     ArrayIndex {
         array: Box<Expr>,
         index: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// $arr[] = expr
     ArrayAppend {
         array: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -71,6 +82,7 @@ pub enum Expr {
     PropertyFetch {
         target: Box<Expr>,
         property: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -78,18 +90,21 @@ pub enum Expr {
     NullsafePropertyFetch {
         target: Box<Expr>,
         property: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
     /// CONSTANT
     ConstFetch {
         name: QualifiedName,
+        #[serde(skip)]
         span: Span,
     },
 
     /// ClassName::class
     NameRef {
         name: QualifiedName,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -97,6 +112,7 @@ pub enum Expr {
     ClassConstFetch {
         class_name: ClassNameRef,
         constant: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -104,6 +120,7 @@ pub enum Expr {
     StaticPropertyFetch {
         class_name: ClassNameRef,
         property: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -111,6 +128,7 @@ pub enum Expr {
     FunctionCall {
         callee: Box<Expr>,
         args: Vec<Arg>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -119,6 +137,7 @@ pub enum Expr {
         target: Box<Expr>,
         method: Ident,
         args: Vec<Arg>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -127,6 +146,7 @@ pub enum Expr {
         target: Box<Expr>,
         method: Ident,
         args: Vec<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -135,6 +155,7 @@ pub enum Expr {
         class: ClassNameRef,
         method: Ident,
         args: Vec<Arg>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -142,6 +163,7 @@ pub enum Expr {
     New {
         class: Box<Expr>,
         args: Vec<Arg>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -149,6 +171,7 @@ pub enum Expr {
     UnaryOp {
         op: UnOpKind,
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -157,6 +180,7 @@ pub enum Expr {
         op: BinOpKind,
         left: Box<Expr>,
         right: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -164,6 +188,7 @@ pub enum Expr {
     InstanceOf {
         expr: Box<Expr>,
         class: QualifiedName,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -171,6 +196,7 @@ pub enum Expr {
     NullCoalesce {
         left: Box<Expr>,
         right: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -179,12 +205,14 @@ pub enum Expr {
         condition: Box<Expr>,
         then_expr: Option<Box<Expr>>,
         else_expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// ($expr)
     Parenthesized {
         inner: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -192,12 +220,14 @@ pub enum Expr {
     Cast {
         kind: CastKind,
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// clone $obj
     Clone {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -205,6 +235,7 @@ pub enum Expr {
     Assign {
         target: Box<Expr>,
         value: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -213,6 +244,7 @@ pub enum Expr {
         op: BinOpKind,
         target: Box<Expr>,
         value: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -220,6 +252,7 @@ pub enum Expr {
     CoalesceAssign {
         target: Box<Expr>,
         value: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -227,6 +260,7 @@ pub enum Expr {
     Match {
         scrutinee: Box<Expr>,
         arms: Vec<MatchArm>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -234,29 +268,34 @@ pub enum Expr {
     Include {
         kind: IncludeKind,
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// throw $expr
     Throw {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Exit {
         arg: Option<Box<Expr>>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// isset($a, $b, ...)
     Isset {
         exprs: Vec<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// empty($a)
     Empty {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -264,12 +303,14 @@ pub enum Expr {
     Yield {
         key: Option<Box<Expr>>,
         value: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// yield from $iter
     YieldFrom {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -280,6 +321,7 @@ pub enum Expr {
         uses: Vec<ClosureUse>,
         return_type: Option<TypeRef>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -290,30 +332,35 @@ pub enum Expr {
         uses: Vec<ClosureUse>,
         return_type: Option<TypeRef>,
         body: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// ++$x
     PrefixInc {
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// --$x
     PrefixDec {
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// $x++
     PostfixInc {
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// $x--
     PostfixDec {
         target: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -321,6 +368,7 @@ pub enum Expr {
     DynamicPropertyFetch {
         target: Box<Expr>,
         property_expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -329,33 +377,39 @@ pub enum Expr {
         target: Box<Expr>,
         method_expr: Box<Expr>,
         args: Vec<Arg>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// `ls -la`
     ShellExec {
+        #[serde(skip)]
         span: Span,
     },
 
     /// list($a, $b) = ...
     ListDestructure {
         items: Vec<ListItemExpr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// print $x
     Print {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     /// eval($code)
     Eval {
         expr: Box<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Error {
+        #[serde(skip)]
         span: Span,
     },
 }

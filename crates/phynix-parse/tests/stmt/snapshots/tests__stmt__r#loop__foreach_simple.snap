@@ -1,0 +1,20 @@
+---
+source: crates/phynix-parse/tests/stmt/loop.rs
+assertion_line: 37
+expression: script
+---
+items:
+  - Foreach:
+      expr:
+        VarRef:
+          name: {}
+      key: ~
+      value:
+        VarRef:
+          name: {}
+      body:
+        items:
+          - Echo:
+              exprs:
+                - VarRef:
+                    name: {}

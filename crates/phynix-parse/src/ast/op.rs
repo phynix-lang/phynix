@@ -1,4 +1,6 @@
-#[derive(Copy, Clone, Debug)]
+use serde::Serialize;
+
+#[derive(Copy, Clone, Debug, Serialize)]
 pub enum BinOpKind {
     /// Arithmetic
     Add, // +
@@ -42,7 +44,7 @@ pub enum BinOpKind {
     CmpSpaceship, // <=>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum UnOpKind {
     Neg,      // -$x
     Not,      // !$x
@@ -52,7 +54,7 @@ pub enum UnOpKind {
     Plus,     // +$x
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum CastKind {
     Int,
     Float,
@@ -63,7 +65,7 @@ pub enum CastKind {
     Unset,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum IncludeKind {
     Include,
     IncludeOnce,

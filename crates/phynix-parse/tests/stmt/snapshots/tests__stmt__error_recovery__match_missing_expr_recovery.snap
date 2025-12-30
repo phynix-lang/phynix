@@ -1,0 +1,37 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 43
+expression: "(script, diags)"
+---
+- items:
+    - ExprStmt:
+        expr:
+          Match:
+            scrutinee:
+              VarRef:
+                name: {}
+            arms:
+              - patterns:
+                  - Expr:
+                      IntLiteral:
+                        value: 1
+                expr:
+                  Error: {}
+              - patterns:
+                  - Expr:
+                      IntLiteral:
+                        value: 2
+                expr:
+                  StringLiteral:
+                    style: SingleQuoted
+- - code:
+      Parse: ExpectedExpression
+    message: expected expression
+    severity: Error
+    span:
+      start: 23
+      end: 23
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

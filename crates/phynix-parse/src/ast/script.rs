@@ -1,9 +1,11 @@
 use crate::ast::Stmt;
 use phynix_core::{Span, Spanned};
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Script {
     pub items: Vec<Stmt>,
+    #[serde(skip)]
     pub span: Span,
 }
 

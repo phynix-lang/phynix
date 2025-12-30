@@ -1,0 +1,7 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 40
+expression: script
+---
+items:
+  - Noop: {}

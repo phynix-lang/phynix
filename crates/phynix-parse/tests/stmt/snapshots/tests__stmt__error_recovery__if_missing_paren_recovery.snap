@@ -1,0 +1,35 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 7
+expression: "(script, diags)"
+---
+- items:
+    - If:
+        cond:
+          NameRef:
+            name:
+              absolute: false
+              parts:
+                - {}
+        then_block:
+          items: []
+        else_if_blocks: []
+        else_block: ~
+    - Echo:
+        exprs:
+          - IntLiteral:
+              value: 1
+- - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - RParen
+    message: "expected ')'"
+    severity: Error
+    span:
+      start: 14
+      end: 14
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

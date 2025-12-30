@@ -3,46 +3,55 @@ use crate::ast::{
     QualifiedName, SwitchCase, TypeRef, UseImport,
 };
 use phynix_core::{Span, Spanned};
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Stmt {
     HtmlChunk {
+        #[serde(skip)]
         span: Span,
     },
 
     ExprStmt {
         expr: Expr,
+        #[serde(skip)]
         span: Span,
     },
 
     Assign {
         target: Ident,
         value: Expr,
+        #[serde(skip)]
         span: Span,
     },
 
     Echo {
         exprs: Vec<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Return {
         expr: Option<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Throw {
         expr: Expr,
+        #[serde(skip)]
         span: Span,
     },
 
     New {
         class: Box<Expr>,
         args: Vec<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Noop {
+        #[serde(skip)]
         span: Span,
     },
 
@@ -50,12 +59,14 @@ pub enum Stmt {
         name: Ident,
         type_annotation: Option<TypeRef>,
         init: Option<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     ConstDecl {
         name: Ident,
         value: Option<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -64,6 +75,7 @@ pub enum Stmt {
         params: Vec<Param>,
         return_type: Option<TypeRef>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -73,6 +85,7 @@ pub enum Stmt {
         extends: Option<QualifiedName>,
         implements: Vec<QualifiedName>,
         body: Vec<ClassMember>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -80,12 +93,14 @@ pub enum Stmt {
         name: Ident,
         extends: Vec<QualifiedName>,
         body: Vec<ClassMember>,
+        #[serde(skip)]
         span: Span,
     },
 
     Trait {
         name: Ident,
         body: Vec<ClassMember>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -94,6 +109,7 @@ pub enum Stmt {
         backed_type: Option<TypeRef>,
         implements: Vec<QualifiedName>,
         body: Vec<ClassMember>,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -102,24 +118,28 @@ pub enum Stmt {
         then_block: Block,
         else_if_blocks: Vec<(Expr, Block)>,
         else_block: Option<Block>,
+        #[serde(skip)]
         span: Span,
     },
 
     Switch {
         cond: Expr,
         cases: Vec<SwitchCase>,
+        #[serde(skip)]
         span: Span,
     },
 
     While {
         cond: Option<Expr>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
     DoWhile {
         body: Block,
         cond: Expr,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -128,6 +148,7 @@ pub enum Stmt {
         cond: Option<Expr>,
         increment: Option<Expr>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -136,26 +157,31 @@ pub enum Stmt {
         key: Option<Expr>,
         value: Option<Expr>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
     Break {
         level: Option<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Continue {
         level: Option<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 
     Goto {
         target: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
     Label {
         name: Ident,
+        #[serde(skip)]
         span: Span,
     },
 
@@ -163,38 +189,45 @@ pub enum Stmt {
         try_block: Block,
         catches: Vec<CatchClause>,
         finally_block: Option<Block>,
+        #[serde(skip)]
         span: Span,
     },
 
     Namespace {
         name: Option<QualifiedName>,
         body: Block,
+        #[serde(skip)]
         span: Span,
     },
 
     Use {
         imports: Vec<UseImport>,
+        #[serde(skip)]
         span: Span,
     },
 
     Declare {
         strict_types: Option<bool>,
+        #[serde(skip)]
         span: Span,
     },
 
     Global {
+        #[serde(skip)]
         span: Span,
     },
 
     Unset {
         exprs: Vec<Expr>,
+        #[serde(skip)]
         span: Span,
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Block {
     pub items: Vec<Stmt>,
+    #[serde(skip)]
     pub span: Span,
 }
 

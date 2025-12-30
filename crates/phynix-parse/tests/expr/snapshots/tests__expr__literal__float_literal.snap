@@ -1,0 +1,10 @@
+---
+source: crates/phynix-parse/tests/expr/literal.rs
+assertion_line: 10
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        FloatLiteral:
+          value: 3.14

@@ -1,0 +1,25 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 35
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        Match:
+          scrutinee:
+            VarRef:
+              name: {}
+          arms:
+            - patterns:
+                - Expr:
+                    IntLiteral:
+                      value: 1
+              expr:
+                StringLiteral:
+                  style: SingleQuoted
+            - patterns:
+                - Default: {}
+              expr:
+                StringLiteral:
+                  style: SingleQuoted

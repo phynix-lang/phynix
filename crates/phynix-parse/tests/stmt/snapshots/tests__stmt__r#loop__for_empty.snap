@@ -1,0 +1,13 @@
+---
+source: crates/phynix-parse/tests/stmt/loop.rs
+assertion_line: 32
+expression: script
+---
+items:
+  - For:
+      init: ~
+      cond: ~
+      increment: ~
+      body:
+        items:
+          - Noop: {}

@@ -1,6 +1,9 @@
+use serde::Serialize;
+
 pub mod diagnostics;
 pub mod token;
 
+#[derive(Debug, Serialize)]
 pub enum LanguageKind {
     /// .php
     PhpCompat,
@@ -12,6 +15,7 @@ pub enum LanguageKind {
     PhxtTemplate,
 }
 
+#[derive(Debug, Serialize)]
 pub enum Strictness {
     /// Legacy not allowed
     Strict,
@@ -20,7 +24,7 @@ pub enum Strictness {
     Lenient,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Span {
     pub start: u32,
     pub end: u32,

@@ -1,0 +1,22 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 5
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        BinaryOp:
+          op: Add
+          left:
+            IntLiteral:
+              value: 1
+          right:
+            BinaryOp:
+              op: Mul
+              left:
+                IntLiteral:
+                  value: 2
+              right:
+                IntLiteral:
+                  value: 3

@@ -1,0 +1,37 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 61
+expression: "(script, diags)"
+---
+- items:
+    - Function:
+        name: {}
+        params: []
+        return_type: ~
+        body:
+          items: []
+- - code:
+      Parse: UnexpectedToken
+    message: failed to parse parameter list
+    severity: Error
+    span:
+      start: 18
+      end: 18
+    labels: []
+    notes: []
+    help: ~
+    fixes: []
+  - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - LBrace
+    message: "expected '{'"
+    severity: Error
+    span:
+      start: 18
+      end: 18
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

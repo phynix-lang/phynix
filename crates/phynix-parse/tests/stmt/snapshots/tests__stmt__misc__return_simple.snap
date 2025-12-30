@@ -1,0 +1,8 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 5
+expression: script
+---
+items:
+  - Return:
+      expr: ~

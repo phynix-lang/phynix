@@ -1,9 +1,11 @@
 use phynix_core::{Span, Spanned};
+use serde::Serialize;
 
 use super::Expr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Ident {
+    #[serde(skip)]
     pub span: Span,
 }
 
@@ -13,10 +15,11 @@ impl Spanned for Ident {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct QualifiedName {
     pub absolute: bool,
     pub parts: Vec<Ident>,
+    #[serde(skip)]
     pub span: Span,
 }
 
@@ -26,14 +29,14 @@ impl Spanned for QualifiedName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum SpecialClassName {
     SelfType,
     ParentType,
     StaticType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ClassNameRef {
     Qualified(QualifiedName),
     Special(SpecialClassName),

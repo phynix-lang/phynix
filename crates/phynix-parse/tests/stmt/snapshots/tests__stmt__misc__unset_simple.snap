@@ -1,0 +1,12 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 45
+expression: script
+---
+items:
+  - Unset:
+      exprs:
+        - VarRef:
+            name: {}
+        - VarRef:
+            name: {}

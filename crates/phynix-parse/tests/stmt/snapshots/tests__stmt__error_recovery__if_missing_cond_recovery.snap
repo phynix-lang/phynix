@@ -1,0 +1,28 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 13
+expression: "(script, diags)"
+---
+- items:
+    - If:
+        cond:
+          Error: {}
+        then_block:
+          items:
+            - Echo:
+                exprs:
+                  - IntLiteral:
+                      value: 1
+        else_if_blocks: []
+        else_block: ~
+- - code:
+      Parse: ExpectedExpression
+    message: expected expression
+    severity: Error
+    span:
+      start: 10
+      end: 10
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

@@ -1,0 +1,17 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+assertion_line: 15
+expression: script
+---
+items:
+  - Function:
+      name: {}
+      params: []
+      return_type:
+        Named:
+          name:
+            absolute: false
+            parts:
+              - {}
+      body:
+        items: []

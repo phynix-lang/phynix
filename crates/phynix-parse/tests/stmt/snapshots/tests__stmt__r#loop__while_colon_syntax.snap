@@ -1,0 +1,19 @@
+---
+source: crates/phynix-parse/tests/stmt/loop.rs
+assertion_line: 10
+expression: script
+---
+items:
+  - While:
+      cond:
+        NameRef:
+          name:
+            absolute: false
+            parts:
+              - {}
+      body:
+        items:
+          - Echo:
+              exprs:
+                - IntLiteral:
+                    value: 1

@@ -2,15 +2,16 @@ pub mod parser;
 
 use crate::diagnostics::parser::ParseDiagnosticCode;
 use crate::Span;
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Severity {
     Error,
     Warning,
     Info,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum DiagnosticCode {
     Parse(ParseDiagnosticCode),
 }
@@ -46,26 +47,26 @@ impl DiagnosticErrorMessage for DiagnosticCode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Label {
     pub span: Span,
     pub message: Option<String>,
     pub is_primary: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct TextEdit {
     pub span: Span,
     pub replacement: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Fix {
     pub title: String,
     pub edits: Vec<TextEdit>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Diagnostic {
     pub code: DiagnosticCode,
     pub message: String,

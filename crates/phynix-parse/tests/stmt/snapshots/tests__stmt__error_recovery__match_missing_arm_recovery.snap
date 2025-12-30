@@ -1,0 +1,21 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+assertion_line: 13
+expression: "(script, diags)"
+---
+- items:
+    - ExprStmt:
+        expr:
+          Match:
+            scrutinee:
+              VarRef:
+                name: {}
+            arms:
+              - patterns:
+                  - Expr:
+                      IntLiteral:
+                        value: 1
+                expr:
+                  StringLiteral:
+                    style: SingleQuoted
+- []

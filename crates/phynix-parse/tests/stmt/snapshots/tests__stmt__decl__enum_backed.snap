@@ -1,0 +1,16 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+assertion_line: 52
+expression: script
+---
+items:
+  - Enum:
+      name: {}
+      backed_type:
+        Named:
+          name:
+            absolute: false
+            parts:
+              - {}
+      implements: []
+      body: []

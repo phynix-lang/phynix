@@ -1,0 +1,8 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 20
+expression: script
+---
+items:
+  - Break:
+      level: ~

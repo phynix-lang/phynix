@@ -1,0 +1,21 @@
+---
+source: crates/phynix-parse/tests/stmt/if.rs
+assertion_line: 85
+expression: script
+---
+items:
+  - If:
+      cond:
+        NameRef:
+          name:
+            absolute: false
+            parts:
+              - {}
+      then_block:
+        items:
+          - Echo:
+              exprs:
+                - IntLiteral:
+                    value: 1
+      else_if_blocks: []
+      else_block: ~

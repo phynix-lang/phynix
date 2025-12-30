@@ -47,7 +47,7 @@ impl<'src> Parser<'src> {
         let semi_span = self.current_span();
         let end_span = if self.eat(TokenKind::Semicolon) {
             semi_span
-        } else if self.at(TokenKind::PhpClose) {
+        } else if self.at(TokenKind::PhpClose) || self.at(TokenKind::Eof) {
             exprs.last().map(|e| e.span()).unwrap_or(start_span)
         } else {
             self.error_and_recover(

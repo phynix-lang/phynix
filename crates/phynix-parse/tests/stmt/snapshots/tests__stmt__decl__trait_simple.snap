@@ -1,0 +1,9 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+assertion_line: 42
+expression: script
+---
+items:
+  - Trait:
+      name: {}
+      body: []

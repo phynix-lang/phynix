@@ -1,0 +1,10 @@
+---
+source: crates/phynix-parse/tests/expr/literal.rs
+assertion_line: 15
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        StringLiteral:
+          style: SingleQuoted

@@ -1,4 +1,5 @@
 use crate::Span;
+use serde::Serialize;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Token {
@@ -7,7 +8,9 @@ pub struct Token {
 }
 
 #[repr(u16)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize,
+)]
 pub enum TokenKind {
     HtmlChunk,
 

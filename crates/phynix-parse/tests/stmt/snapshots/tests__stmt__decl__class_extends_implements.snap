@@ -1,0 +1,25 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+assertion_line: 30
+expression: script
+---
+items:
+  - Class:
+      flags: 0
+      name:
+        Qualified:
+          absolute: false
+          parts:
+            - {}
+      extends:
+        absolute: false
+        parts:
+          - {}
+      implements:
+        - absolute: false
+          parts:
+            - {}
+        - absolute: false
+          parts:
+            - {}
+      body: []

@@ -1,0 +1,10 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+assertion_line: 10
+expression: script
+---
+items:
+  - Return:
+      expr:
+        IntLiteral:
+          value: 1

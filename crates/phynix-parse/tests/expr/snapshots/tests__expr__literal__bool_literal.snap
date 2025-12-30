@@ -1,0 +1,13 @@
+---
+source: crates/phynix-parse/tests/expr/literal.rs
+assertion_line: 20
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        NameRef:
+          name:
+            absolute: false
+            parts:
+              - {}

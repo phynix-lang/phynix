@@ -1,7 +1,8 @@
 use crate::diagnostics::{DiagnosticCodeStr, DiagnosticErrorMessage};
 use crate::token::TokenKind;
+use serde::Serialize;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ParseDiagnosticCode {
     ExpectedExpression,
     ExpectedIdent,

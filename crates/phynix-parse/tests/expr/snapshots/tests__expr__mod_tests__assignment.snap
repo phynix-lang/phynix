@@ -1,0 +1,15 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 10
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        Assign:
+          target:
+            VarRef:
+              name: {}
+          value:
+            IntLiteral:
+              value: 1

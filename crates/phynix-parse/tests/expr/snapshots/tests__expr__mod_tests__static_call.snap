@@ -1,0 +1,21 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+assertion_line: 30
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        StaticCall:
+          class:
+            Qualified:
+              absolute: false
+              parts:
+                - {}
+          method: {}
+          args:
+            - name: ~
+              unpack: false
+              expr:
+                IntLiteral:
+                  value: 1
