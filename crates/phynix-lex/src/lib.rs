@@ -322,9 +322,7 @@ impl<'src> Lexer<'src> {
         // Decimal / Float
         self.take_digits_us();
         let mut kind = TokenKind::Int;
-        if self.peek() == b'.'
-            && self.peek2().map(is_dec_digit).unwrap_or(false)
-        {
+        if self.peek() == b'.' && self.peek2() != Some(b'.') {
             kind = TokenKind::Float;
             self.i += 1;
             self.take_digits_us();

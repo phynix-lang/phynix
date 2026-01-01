@@ -90,3 +90,39 @@ fn exponent_sign_without_digits_rolls_back_to_int_then_ident() {
         ],
     );
 }
+
+#[test]
+fn float_ending_with_dot() {
+    let k = kinds_php_prefixed("0.");
+    assert_kinds_eq(&k, &[TokenKind::Float, TokenKind::Eof]);
+}
+
+#[test]
+fn float_ending_with_dot_before_call() {
+    let k = kinds_php_prefixed("0.->method()");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Float,
+            TokenKind::Arrow,
+            TokenKind::Ident,
+            TokenKind::LParen,
+            TokenKind::RParen,
+            TokenKind::Eof,
+        ],
+    );
+}
+
+#[test]
+fn float_ending_with_dot_before_ellipsis() {
+    let k = kinds_php_prefixed("0...$vars");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::Int,
+            TokenKind::Ellipsis,
+            TokenKind::VarIdent,
+            TokenKind::Eof,
+        ],
+    );
+}
