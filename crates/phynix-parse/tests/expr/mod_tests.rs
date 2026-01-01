@@ -46,3 +46,8 @@ fn ternary() {
 fn null_coalesce() {
     assert_script_snapshot!("<?php $a ?? $b;");
 }
+
+#[test]
+fn variable_variable() {
+    assert_script_snapshot!("<?php $$a; $$$a; ${$a}; ${'a'}; $$ {'a'};");
+}

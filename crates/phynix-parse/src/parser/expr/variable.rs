@@ -32,6 +32,22 @@ impl<'src> Parser<'src> {
             extra += 1;
         }
 
+        if self.at(TokenKind::LBrace) {
+            self.bump();
+            let mut last_end = self.current_span().start;
+            let inner = self.parse_expr_or_err(&mut last_end);
+            self.expect_or_err(TokenKind::RBrace, &mut last_end);
+
+            let vv = Expr::VariableVariable {
+                target: Box::new(inner),
+                span: Span {
+                    start: start_pos,
+                    end: last_end,
+                },
+            };
+            return self.wrap_variable_levels(vv, extra, start_pos);
+        }
+
         let (name_span, end_span, levels) = if self.at(TokenKind::VarIdent) {
             let v = self.bump();
             (

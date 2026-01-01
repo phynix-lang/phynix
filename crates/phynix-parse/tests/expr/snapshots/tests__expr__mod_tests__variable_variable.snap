@@ -1,0 +1,39 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        VariableVariable:
+          target:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        VariableVariable:
+          target:
+            VariableVariable:
+              target:
+                VarRef:
+                  name: {}
+  - ExprStmt:
+      expr:
+        VariableVariable:
+          target:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        VariableVariable:
+          target:
+            StringLiteral:
+              style: SingleQuoted
+  - ExprStmt:
+      expr:
+        VariableVariable:
+          target:
+            VariableVariable:
+              target:
+                StringLiteral:
+                  style: SingleQuoted
