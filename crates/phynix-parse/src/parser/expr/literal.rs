@@ -349,6 +349,22 @@ impl<'src> Parser<'src> {
                         span: Span::at(ell.span.end),
                     }
                 });
+            } else if self.at(TokenKind::Comma) {
+                // Empty slot: [, $b]
+                let comma_span = self.current_span();
+                items.push(ArrayItemExpr {
+                    key: None,
+                    value: Expr::Error {
+                        span: Span::at(comma_span.start),
+                    },
+                    unpack: false,
+                    span: comma_span,
+                });
+                self.bump();
+                if self.eat(close) {
+                    return (items, self.current_span().start);
+                }
+                continue;
             } else if self.at(TokenKind::LBracket) {
                 let lb = self.bump();
                 item_start = lb.span.start;
@@ -365,7 +381,16 @@ impl<'src> Parser<'src> {
                 let err_pos = self.current_span().start;
                 self.error_and_recover(
                     Diagnostic::error_from_code(
-                        ParseDiagnosticCode::ExpectedExpression, // TODO: Better code?
+                        ParseDiagnosticCode::expected_one_of([
+                            ParseDiagnosticCode::ExpectedExpression,
+                            ParseDiagnosticCode::expected_tokens([
+                                TokenKind::Ellipsis,
+                                TokenKind::Comma,
+                                TokenKind::LBracket,
+                                TokenKind::KwArray,
+                                close,
+                            ]),
+                        ]),
                         Span::at(err_pos),
                     ),
                     &[TokenKind::Comma, close],

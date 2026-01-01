@@ -34,3 +34,8 @@ fn array_literal() {
 fn array_literal_with_keys() {
     assert_script_snapshot!("<?php ['a' => 1, 'b' => 2];");
 }
+
+#[test]
+fn array_literal_skipped_elements() {
+    assert_script_snapshot!("<?php [ , $a, , ];");
+}
