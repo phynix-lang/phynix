@@ -720,12 +720,7 @@ impl<'src> Lexer<'src> {
 
                 // Ensure the label/whitespace is followed by a newline, semicolon, comma, or closing punctuation (or EOF)
                 let next_b = self.src.get(post_label).copied().unwrap_or(0);
-                if next_b == 0
-                    || matches!(
-                        next_b,
-                        b'\n' | b'\r' | b';' | b',' | b')' | b']' | b'}'
-                    )
-                {
+                if next_b == 0 || !IS_ID_CONT[next_b as usize] {
                     let string_end = p;
 
                     self.i = post_label;

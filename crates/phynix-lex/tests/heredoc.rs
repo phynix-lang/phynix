@@ -159,9 +159,9 @@ fn heredoc_allows_comma_after_label() {
 }
 
 #[test]
-fn heredoc_does_not_allow_dot_after_label() {
+fn heredoc_allows_dot_after_label() {
     let src = "<<<LBL\nhello\nLBL.\n";
     let k = kinds_php_prefixed(src);
 
-    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Dot, TokenKind::Eof]);
 }
