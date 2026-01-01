@@ -122,6 +122,8 @@ pub enum TokenKind {
     EqEq,
     /// `!=`
     NotEq,
+    /// `<>`
+    NotEqAlt,
     /// `<=`
     Le,
     /// `>=`
@@ -318,6 +320,7 @@ impl TokenKind {
             Self::FatArrow => "=>",
             Self::EqEq => "==",
             Self::NotEq => "!=",
+            Self::NotEqAlt => "<>",
             Self::Le => "<=",
             Self::Ge => ">=",
             Self::Ellipsis => "...",

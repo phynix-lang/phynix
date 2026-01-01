@@ -59,3 +59,24 @@ fn unknown_byte_in_php_mode_with_bom_accounts_for_prefix() {
         other => panic!("expected LexError::At, got {other:?}"),
     }
 }
+
+#[test]
+fn comparison_operators() {
+    let k = kinds_php_prefixed("== === != <> !== < > <= >= <=>");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::EqEq,
+            TokenKind::StrictEq,
+            TokenKind::NotEq,
+            TokenKind::NotEqAlt,
+            TokenKind::StrictNe,
+            TokenKind::Lt,
+            TokenKind::Gt,
+            TokenKind::Le,
+            TokenKind::Ge,
+            TokenKind::Spaceship,
+            TokenKind::Eof,
+        ],
+    );
+}

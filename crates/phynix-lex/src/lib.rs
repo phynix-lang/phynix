@@ -447,6 +447,10 @@ impl<'src> Lexer<'src> {
                 self.i = i + 2;
                 return Some(NotEq);
             },
+            (b'<', Some(b'>'), _) => {
+                self.i = i + 2;
+                return Some(NotEqAlt);
+            },
             (b'<', Some(b'='), _) => {
                 self.i = i + 2;
                 return Some(Le);
