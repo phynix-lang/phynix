@@ -523,7 +523,7 @@ impl<'src> Parser<'src> {
             Some(token)
                 if matches!(
                     token.kind,
-                    TokenKind::Ident | TokenKind::KwArray
+                    TokenKind::Ident | TokenKind::KwArray | TokenKind::KwUnset
                 ) =>
             {
                 let ident_token = self.bump();
@@ -548,9 +548,11 @@ impl<'src> Parser<'src> {
             "int" | "integer" => CastKind::Int,
             "float" | "double" | "real" => CastKind::Float,
             "string" => CastKind::String,
+            "binary" => CastKind::Binary,
             "bool" | "boolean" => CastKind::Bool,
             "array" => CastKind::Array,
             "object" => CastKind::Object,
+            "unset" => CastKind::Unset,
             _ => {
                 self.pos = save;
                 self.skip_trivia_and_cache();

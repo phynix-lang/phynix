@@ -56,3 +56,8 @@ fn null_coalesce() {
 fn variable_variable() {
     assert_script_snapshot!("<?php $$a; $$$a; ${$a}; ${'a'}; $$ {'a'};");
 }
+
+#[test]
+fn casts() {
+    assert_script_snapshot!("<?php (int)$a; (float)$b; (string)$c; (bool)$d; (array)$e; (object)$f; (binary)$g; (unset)$h;");
+}

@@ -1,0 +1,61 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Int
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Float
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: String
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Bool
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Array
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Object
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Binary
+          expr:
+            VarRef:
+              name: {}
+  - ExprStmt:
+      expr:
+        Cast:
+          kind: Unset
+          expr:
+            VarRef:
+              name: {}

@@ -62,6 +62,7 @@ pub enum CastKind {
     Int,
     Float,
     String,
+    Binary,
     Array,
     Object,
     Bool,
