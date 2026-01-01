@@ -47,6 +47,18 @@ impl<'src> Parser<'src> {
                             continue;
                         },
                     }
+                } else if self.at(TokenKind::KwSelf)
+                    || self.at(TokenKind::KwParent)
+                    || self.at(TokenKind::KwStatic)
+                {
+                    let tok = self.bump();
+                    let span = tok.span;
+                    let ident = crate::ast::Ident { span };
+                    QualifiedName {
+                        absolute: false,
+                        parts: vec![ident],
+                        span,
+                    }
                 } else if self.at(TokenKind::VarIdent) {
                     let var_tok = self.bump();
                     let span = var_tok.span;
