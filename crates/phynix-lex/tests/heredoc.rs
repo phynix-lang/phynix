@@ -149,3 +149,11 @@ fn heredoc_label_inside_content_not_ending_line_is_not_closing() {
         &[TokenKind::StrDq, TokenKind::Semicolon, TokenKind::Eof],
     );
 }
+
+#[test]
+fn heredoc_allows_comma_after_label() {
+    let src = "<<<LBL\nhello\nLBL,\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Comma, TokenKind::Eof]);
+}

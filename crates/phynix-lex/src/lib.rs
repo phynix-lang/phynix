@@ -711,11 +711,20 @@ impl<'src> Lexer<'src> {
             }
 
             if i_lbl == label.len() {
-                // Ensure the label is followed by a newline or semicolon (or EOF)
+                // Ensure the label is followed by a newline, semicolon, comma, or closing parenthesis (or EOF)
                 let after_label = label_pos + label.len();
                 let next_b = self.src.get(after_label).copied();
                 if next_b.is_none()
-                    || matches!(next_b, Some(b'\n') | Some(b'\r') | Some(b';'))
+                    || matches!(
+                        next_b,
+                        Some(b'\n')
+                            | Some(b'\r')
+                            | Some(b';')
+                            | Some(b',')
+                            | Some(b')')
+                            | Some(b']')
+                            | Some(b'}')
+                    )
                 {
                     let string_end = p;
 
