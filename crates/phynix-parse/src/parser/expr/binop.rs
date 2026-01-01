@@ -79,86 +79,92 @@ impl<'src> Parser<'src> {
         let instanceof_token = self.bump();
         let last_end = instanceof_token.span.end;
 
-        let class_ref =
-            if self.at(TokenKind::Backslash) || self.at(TokenKind::Ident) {
-                match self.parse_qualified_name() {
-                    Some(qn) => ClassNameRef::Qualified(qn),
-                    None => {
-                        self.recover_to_any(&[
+        let class_ref;
+        if self.at(TokenKind::Backslash) || self.at(TokenKind::Ident) {
+            match self.parse_qualified_name() {
+                Some(qn) => class_ref = ClassNameRef::Qualified(qn),
+                None => {
+                    self.recover_to_any(&[
+                        TokenKind::Semicolon,
+                        TokenKind::Comma,
+                        TokenKind::RParen,
+                        TokenKind::RBracket,
+                    ]);
+
+                    let span = Span {
+                        start: left.span().start,
+                        end: last_end,
+                    };
+
+                    return Expr::InstanceOf {
+                        expr: Box::new(left),
+                        class: ClassNameRef::Qualified(QualifiedName {
+                            absolute: false,
+                            parts: vec![],
+                            span,
+                        }),
+                        span,
+                    };
+                },
+            }
+        } else if (self.at(TokenKind::KwSelf)
+            || self.at(TokenKind::KwParent)
+            || self.at(TokenKind::KwStatic))
+            && self.at_nth(1, TokenKind::ColCol)
+        {
+            class_ref = self.parse_instanceof_dynamic_class_ref();
+        } else if self.at(TokenKind::KwSelf) {
+            let token = self.bump();
+            class_ref = ClassNameRef::Special(
+                crate::ast::SpecialClassName::SelfType(token.span),
+            );
+        } else if self.at(TokenKind::KwParent) {
+            let token = self.bump();
+            class_ref = ClassNameRef::Special(
+                crate::ast::SpecialClassName::ParentType(token.span),
+            );
+        } else if self.at(TokenKind::KwStatic) {
+            let token = self.bump();
+            class_ref = ClassNameRef::Special(
+                crate::ast::SpecialClassName::StaticType(token.span),
+            );
+        } else {
+            match self.parse_prefix_term() {
+                Some(expr) => {
+                    let base = self.parse_postfix_chain(expr).unwrap();
+                    class_ref = ClassNameRef::Dynamic(Box::new(base));
+                },
+                None => {
+                    self.error_and_recover(
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedIdent,
+                            Span::at(last_end),
+                        ),
+                        &[
                             TokenKind::Semicolon,
                             TokenKind::Comma,
                             TokenKind::RParen,
                             TokenKind::RBracket,
-                        ]);
+                        ],
+                    );
 
-                        let span = Span {
-                            start: left.span().start,
-                            end: last_end,
-                        };
+                    let span = Span {
+                        start: left.span().start,
+                        end: last_end,
+                    };
 
-                        return Expr::InstanceOf {
-                            expr: Box::new(left),
-                            class: ClassNameRef::Qualified(QualifiedName {
-                                absolute: false,
-                                parts: vec![],
-                                span,
-                            }),
+                    return Expr::InstanceOf {
+                        expr: Box::new(left),
+                        class: ClassNameRef::Qualified(QualifiedName {
+                            absolute: false,
+                            parts: vec![],
                             span,
-                        };
-                    },
-                }
-            } else if self.at(TokenKind::KwSelf) {
-                let token = self.bump();
-                ClassNameRef::Special(crate::ast::SpecialClassName::SelfType(
-                    token.span,
-                ))
-            } else if self.at(TokenKind::KwParent) {
-                let token = self.bump();
-                ClassNameRef::Special(crate::ast::SpecialClassName::ParentType(
-                    token.span,
-                ))
-            } else if self.at(TokenKind::KwStatic) {
-                let token = self.bump();
-                ClassNameRef::Special(crate::ast::SpecialClassName::StaticType(
-                    token.span,
-                ))
-            } else {
-                match self.parse_prefix_term() {
-                    Some(expr) => {
-                        let base = self.parse_postfix_chain(expr).unwrap();
-                        ClassNameRef::Dynamic(Box::new(base))
-                    },
-                    None => {
-                        self.error_and_recover(
-                            Diagnostic::error_from_code(
-                                ParseDiagnosticCode::ExpectedIdent,
-                                Span::at(last_end),
-                            ),
-                            &[
-                                TokenKind::Semicolon,
-                                TokenKind::Comma,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                            ],
-                        );
-
-                        let span = Span {
-                            start: left.span().start,
-                            end: last_end,
-                        };
-
-                        return Expr::InstanceOf {
-                            expr: Box::new(left),
-                            class: ClassNameRef::Qualified(QualifiedName {
-                                absolute: false,
-                                parts: vec![],
-                                span,
-                            }),
-                            span,
-                        };
-                    },
-                }
-            };
+                        }),
+                        span,
+                    };
+                },
+            }
+        };
 
         let class_span = match &class_ref {
             ClassNameRef::Qualified(qn) => qn.span,
@@ -259,6 +265,27 @@ impl<'src> Parser<'src> {
                 }
             })
             .unwrap_or(false)
+    }
+
+    fn parse_instanceof_dynamic_class_ref(&mut self) -> ClassNameRef {
+        let start_pos = self.current_span().start;
+        match self.parse_prefix_term() {
+            Some(expr) => {
+                let base = self.parse_postfix_chain(expr).unwrap();
+                ClassNameRef::Dynamic(Box::new(base))
+            },
+            None => {
+                self.error(Diagnostic::error_from_code(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    Span::at(start_pos),
+                ));
+                ClassNameRef::Qualified(QualifiedName {
+                    absolute: false,
+                    parts: vec![],
+                    span: Span::at(start_pos),
+                })
+            },
+        }
     }
 }
 

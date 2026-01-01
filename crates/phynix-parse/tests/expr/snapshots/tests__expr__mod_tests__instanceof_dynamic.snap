@@ -1,0 +1,20 @@
+---
+source: crates/phynix-parse/tests/expr/mod_tests.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        InstanceOf:
+          expr:
+            VarRef:
+              name: {}
+          class:
+            Dynamic:
+              StaticPropertyFetch:
+                class_name:
+                  Qualified:
+                    absolute: false
+                    parts:
+                      - {}
+                property: {}

@@ -61,3 +61,8 @@ fn variable_variable() {
 fn casts() {
     assert_script_snapshot!("<?php (int)$a; (float)$b; (string)$c; (bool)$d; (array)$e; (object)$f; (binary)$g; (unset)$h;");
 }
+
+#[test]
+fn instanceof_dynamic() {
+    assert_script_snapshot!("<?php $x instanceof self::$a;");
+}
