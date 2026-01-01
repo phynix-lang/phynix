@@ -27,16 +27,17 @@ impl<'src> Parser<'src> {
         let start = kw.span.start;
         let mut end = kw.span.end;
 
-        let level = if self.at(TokenKind::Int) {
-            if let Some(expr) = self.parse_int_literal() {
-                end = expr.span().end;
-                Some(expr)
-            } else {
-                None
-            }
+        let level = if !self.at(TokenKind::Semicolon)
+            && !self.at(TokenKind::PhpClose)
+        {
+            self.parse_expr()
         } else {
             None
         };
+
+        if let Some(ref expr) = level {
+            end = expr.span().end;
+        }
 
         self.expect_or_err(TokenKind::Semicolon, &mut end);
 

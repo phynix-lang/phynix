@@ -26,6 +26,16 @@ fn break_level() {
 }
 
 #[test]
+fn break_parenthesized_level() {
+    assert_script_snapshot!("<?php break(2);");
+}
+
+#[test]
+fn continue_parenthesized_level() {
+    assert_script_snapshot!("<?php continue(2);");
+}
+
+#[test]
 fn continue_simple() {
     assert_script_snapshot!("<?php continue;");
 }

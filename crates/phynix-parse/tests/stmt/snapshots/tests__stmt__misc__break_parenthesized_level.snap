@@ -1,0 +1,11 @@
+---
+source: crates/phynix-parse/tests/stmt/misc.rs
+expression: script
+---
+items:
+  - Break:
+      level:
+        Parenthesized:
+          inner:
+            IntLiteral:
+              value: 2
