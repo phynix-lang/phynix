@@ -308,6 +308,10 @@ impl<'src> Parser<'src> {
         let name_tok = match self.expect(TokenKind::VarIdent) {
             Some(t) => t,
             None => {
+                self.error(Diagnostic::error_from_code(
+                    ParseDiagnosticCode::expected_token(TokenKind::VarIdent),
+                    Span::at(last_end),
+                ));
                 return None;
             },
         };

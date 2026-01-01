@@ -5,7 +5,8 @@ expression: script
 items:
   - ExprStmt:
       expr:
-        NullCoalesce:
+        BinaryOp:
+          op: CmpNe
           left:
             VarRef:
               name: {}

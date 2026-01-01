@@ -287,7 +287,7 @@ pub fn token_to_binop(kind: &TokenKind) -> Option<BinOpKind> {
         TokenKind::StrictEq => Some(BinOpKind::CmpEqStrict),
         TokenKind::StrictNe => Some(BinOpKind::CmpNeStrict),
         TokenKind::EqEq => Some(BinOpKind::CmpEq),
-        TokenKind::NotEq => Some(BinOpKind::CmpNe),
+        TokenKind::NotEq | TokenKind::NotEqAlt => Some(BinOpKind::CmpNe),
 
         // Ordering
         TokenKind::Lt => Some(BinOpKind::CmpLt),

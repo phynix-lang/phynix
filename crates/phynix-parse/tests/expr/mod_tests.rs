@@ -6,6 +6,11 @@ fn binary_op() {
 }
 
 #[test]
+fn binary_op_not_eq_alt() {
+    assert_script_snapshot!("<?php $a <> $b;");
+}
+
+#[test]
 fn assignment() {
     assert_script_snapshot!("<?php $a = 1;");
 }
