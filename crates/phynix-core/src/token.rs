@@ -14,11 +14,6 @@ pub struct Token {
 pub enum TokenKind {
     HtmlChunk,
 
-    /// `<?phxt`
-    PhxtOpen,
-    /// `<?phx`
-    PhxOpen,
-    /// `<?php`
     PhpOpen,
     /// `<?=`
     EchoOpen,
@@ -274,8 +269,6 @@ impl TokenKind {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::HtmlChunk => "HTML",
-            Self::PhxtOpen => "<?phxt",
-            Self::PhxOpen => "<?phx",
             Self::PhpOpen => "<?php",
             Self::EchoOpen => "<?=",
             Self::PhpClose => "?>",

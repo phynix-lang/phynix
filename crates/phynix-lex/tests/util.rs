@@ -1,25 +1,72 @@
 use phynix_core::token::{Token, TokenKind};
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::{lex, LexError};
 
-fn lex_ok(src: &str) -> Vec<Token> {
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
+pub fn lex_with_config(src: &str, config: PhynixConfig) -> Vec<Token> {
+    let out = lex(src, config).expect("lex ok");
     out.tokens
 }
 
+pub fn lex_ok(src: &str) -> Vec<Token> {
+    lex_with_config(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+}
+
+pub fn kinds_phx(src: &str) -> Vec<TokenKind> {
+    lex_with_config(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::PhxCode,
+        },
+    )
+    .into_iter()
+    .map(|token| token.kind)
+    .collect()
+}
+
+pub fn kinds_phxt(src: &str) -> Vec<TokenKind> {
+    lex_with_config(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::PhxTemplate,
+        },
+    )
+    .into_iter()
+    .map(|token| token.kind)
+    .collect()
+}
+
 pub fn lex_err(src: &str) -> LexError {
-    lex(src, LanguageKind::PhpCompat, Strictness::Lenient)
-        .err()
-        .expect("expected err")
+    lex(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .err()
+    .expect("expected err")
 }
 
 pub fn lex_err_php_prefixed(src: &str) -> LexError {
     let prefix = "<?php ";
     let prefixed = format!("{}{}", prefix, src);
-    lex(&prefixed, LanguageKind::PhpCompat, Strictness::Lenient)
-        .err()
-        .expect("expected err")
+    lex(
+        &prefixed,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .err()
+    .expect("expected err")
 }
 
 pub fn kinds(src: &str) -> Vec<TokenKind> {

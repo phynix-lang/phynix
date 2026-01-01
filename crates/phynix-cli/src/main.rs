@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use phynix_core::diagnostics::Severity;
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::{lex, LexError};
 use phynix_parse::ParseResult;
 use std::ops::Range;
@@ -49,7 +49,22 @@ fn cmd_lex(path: &str) -> Result<()> {
             None => continue,
         };
 
-        match lex(&text, LanguageKind::PhpCompat, Strictness::Lenient) {
+        let lang = match f
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_ascii_lowercase())
+        {
+            Some(ref ext) if ext == "phx" => LanguageKind::PhxCode,
+            Some(ref ext) if ext == "phxt" => LanguageKind::PhxTemplate,
+            _ => LanguageKind::Php,
+        };
+
+        let config = PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: lang,
+        };
+
+        match lex(&text, config) {
             Ok(lex_result) => {
                 if Path::new(path).is_file() {
                     for tok in &lex_result.tokens {
@@ -107,31 +122,41 @@ fn cmd_parse(path: &str) -> Result<()> {
             None => continue,
         };
 
-        let lex_result =
-            match lex(&text, LanguageKind::PhpCompat, Strictness::Lenient) {
-                Ok(ok) => ok,
-                Err(LexError::At(byte_pos)) => {
-                    eprintln!("\n[LEX ERROR] in {}", f.display());
-                    print_span(&text, "Lex error here", byte_pos..byte_pos + 1);
-                    return Ok(());
-                },
-                Err(LexError::UnterminatedBlock(start_byte)) => {
-                    eprintln!("\n[LEX ERROR] in {}", f.display());
-                    print_span(
-                        &text,
-                        "Unterminated block comment starts here",
-                        start_byte..start_byte + 2,
-                    );
-                    return Ok(());
-                },
-            };
+        let lang = match f
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_ascii_lowercase())
+        {
+            Some(ref ext) if ext == "phx" => LanguageKind::PhxCode,
+            Some(ref ext) if ext == "phxt" => LanguageKind::PhxTemplate,
+            _ => LanguageKind::Php,
+        };
 
-        let parse_result = phynix_parse::parse(
-            &text,
-            &lex_result.tokens,
-            lex_result.lang,
-            lex_result.strictness,
-        );
+        let config = PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: lang,
+        };
+
+        let lex_result = match lex(&text, config) {
+            Ok(ok) => ok,
+            Err(LexError::At(byte_pos)) => {
+                eprintln!("\n[LEX ERROR] in {}", f.display());
+                print_span(&text, "Lex error here", byte_pos..byte_pos + 1);
+                return Ok(());
+            },
+            Err(LexError::UnterminatedBlock(start_byte)) => {
+                eprintln!("\n[LEX ERROR] in {}", f.display());
+                print_span(
+                    &text,
+                    "Unterminated block comment starts here",
+                    start_byte..start_byte + 2,
+                );
+                return Ok(());
+            },
+        };
+
+        let parse_result =
+            phynix_parse::parse(&text, &lex_result.tokens, lex_result.config);
 
         if has_parse_errors(&parse_result.diagnostics) {
             eprintln!("\n[PARSE FAIL] in {}\n", f.display());
@@ -271,9 +296,18 @@ fn has_parse_errors(diags: &[phynix_core::diagnostics::Diagnostic]) -> bool {
 
 static IGNORE: &[&str] = &[
     "examples/laravel\\tests\\Foundation\\fixtures\\bad-syntax-strategy.php",
-    "examples/joomla\\libraries\\vendor\\squizlabs\\php_codesniffer\\src\\Standards\\Generic\\Tests\\Arrays\\DisallowLongArraySyntaxUnitTest.1.inc",
-    "examples/joomla\\libraries\\vendor\\squizlabs\\php_codesniffer\\src\\Standards\\Generic\\Tests\\Arrays\\DisallowLongArraySyntaxUnitTest.2.inc",
-    "examples/joomla\\libraries\\vendor\\squizlabs\\php_codesniffer\\src\\Standards\\Generic\\Tests\\Arrays\\DisallowLongArraySyntaxUnitTest.3.inc",
+    "php_codesniffer\\src\\Standards\\Generic\\Tests",
+    "php_codesniffer\\src\\Standards\\MySource\\Tests",
+    "php_codesniffer\\src\\Standards\\PEAR\\Tests",
+    "php_codesniffer\\src\\Standards\\PSR1\\Tests",
+    "php_codesniffer\\src\\Standards\\PSR12\\Tests",
+    "php_codesniffer\\src\\Standards\\PSR2\\Tests",
+    "php_codesniffer\\src\\Standards\\Squiz\\Tests",
+    "php_codesniffer\\tests\\Core",
+    "examples/symfony\\src\\Symfony\\Bridge\\PhpUnit\\Tests",
+    "examples/symfony\\src\\Symfony\\Component\\Console\\Tests\\phpt",
+    "examples/symfony\\src\\Symfony\\Component\\ErrorHandler\\Tests\\phpt",
+    "examples/symfony\\src\\Symfony\\Component\\VarDumper\\Tests\\Dumper\\functions",
 ];
 
 fn is_php_path(path: &Path) -> bool {
@@ -283,8 +317,10 @@ fn is_php_path(path: &Path) -> bool {
         .map(|s| s.to_ascii_lowercase())
     {
         Some(ref ext)
-            if ["php", "phtml", "inc", "php5", "php7", "phpt"]
-                .contains(&ext.as_str()) =>
+            if [
+                "php", "phtml", "inc", "php5", "php7", "phpt", "phx", "phxt",
+            ]
+            .contains(&ext.as_str()) =>
         {
             true
         },

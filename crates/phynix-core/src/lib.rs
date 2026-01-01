@@ -3,25 +3,38 @@ use serde::Serialize;
 pub mod diagnostics;
 pub mod token;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum LanguageKind {
     /// .php
-    PhpCompat,
+    Php,
 
     /// .phx
     PhxCode,
 
     /// .phxt
-    PhxtTemplate,
+    PhxTemplate,
 }
 
-#[derive(Debug, Serialize)]
-pub enum Strictness {
-    /// Legacy not allowed
-    Strict,
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize,
+)]
+pub enum PhpVersion {
+    Php70,
+    Php71,
+    Php72,
+    Php73,
+    Php74,
+    Php80,
+    Php81,
+    Php82,
+    Php83,
+    Php84,
+}
 
-    /// Legacy allowed but deprecated
-    Lenient,
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PhynixConfig {
+    pub language: LanguageKind,
+    pub target_php_version: PhpVersion,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]

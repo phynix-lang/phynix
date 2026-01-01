@@ -7,7 +7,7 @@ use crate::ast::*;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
 use phynix_core::token::{Token, TokenKind};
-use phynix_core::{LanguageKind, Span, Spanned, Strictness};
+use phynix_core::{LanguageKind, PhynixConfig, Span, Spanned};
 
 pub struct Parser<'src> {
     src: &'src str,
@@ -17,8 +17,7 @@ pub struct Parser<'src> {
     cur: &'src Token,
     diagnostics: Vec<Diagnostic>,
 
-    lang: LanguageKind,
-    strictness: Strictness,
+    _config: PhynixConfig,
 }
 
 impl<'src> Parser<'src> {
@@ -26,8 +25,7 @@ impl<'src> Parser<'src> {
     pub fn new(
         src: &'src str,
         tokens: &'src [Token],
-        lang: LanguageKind,
-        strictness: Strictness,
+        config: PhynixConfig,
     ) -> Self {
         debug_assert!(tokens
             .last()
@@ -41,15 +39,16 @@ impl<'src> Parser<'src> {
             pos: 0,
             cur: &tokens[0],
             diagnostics: Vec::new(),
-            lang,
-            strictness,
+            _config: config,
         };
         parser.skip_trivia_and_cache();
         parser
     }
 
     pub fn parse_script(mut self) -> (Script, Vec<Diagnostic>) {
-        if self.at(TokenKind::PhpOpen) {
+        if matches!(self._config.language, LanguageKind::PhxCode) {
+            // Already in PHP mode, no open tag expected at start
+        } else if self.at(TokenKind::PhpOpen) || self.at(TokenKind::EchoOpen) {
             let _open_token = self.bump();
         }
 

@@ -1,5 +1,5 @@
 use phynix_core::diagnostics::Diagnostic;
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::lex;
 use phynix_parse::ast::Script;
 use phynix_parse::parser::Parser;
@@ -14,16 +14,20 @@ pub fn parse_ok(src: &str) -> Script {
     script
 }
 
+pub fn parse_with_config(
+    src: &str,
+    config: PhynixConfig,
+) -> (Script, Vec<Diagnostic>) {
+    let out = lex(src, config.clone()).expect("lex ok");
+    Parser::new(src, &out.tokens, config).parse_script()
+}
+
 pub fn parse(src: &str) -> (Script, Vec<Diagnostic>) {
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
-    Parser::new(
-        src,
-        &out.tokens,
-        LanguageKind::PhpCompat,
-        Strictness::Lenient,
-    )
-    .parse_script()
+    let config = PhynixConfig {
+        target_php_version: PhpVersion::Php84,
+        language: LanguageKind::Php,
+    };
+    parse_with_config(src, config)
 }
 
 #[macro_export]

@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::lex_into;
 use std::hint::black_box;
 
@@ -22,6 +22,11 @@ fn bench_lex(c: &mut Criterion) {
         ("big_string", big_string.as_str()),
     ];
 
+    let config = PhynixConfig {
+        target_php_version: PhpVersion::Php84,
+        language: LanguageKind::Php,
+    };
+
     let mut group = c.benchmark_group("lex_into");
     for (name, src) in inputs {
         group.throughput(Throughput::Bytes(src.len() as u64));
@@ -32,8 +37,7 @@ fn bench_lex(c: &mut Criterion) {
                 out.clear();
                 lex_into(
                     black_box(src),
-                    black_box(&LanguageKind::PhpCompat),
-                    black_box(&Strictness::Lenient),
+                    black_box(&config),
                     black_box(&mut out),
                 )
                 .unwrap();

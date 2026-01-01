@@ -1,6 +1,6 @@
 use memchr::{memchr, memmem};
 use phynix_core::token::{Token, TokenKind};
-use phynix_core::{LanguageKind, Span, Strictness};
+use phynix_core::{PhynixConfig, Span};
 use thiserror::Error;
 
 #[inline(always)]
@@ -34,29 +34,19 @@ fn lex_unterminated_block(at: u32) -> LexError {
 }
 
 pub struct LexResult {
-    pub lang: LanguageKind,
-    pub strictness: Strictness,
+    pub config: PhynixConfig,
     pub tokens: Vec<Token>,
 }
 
-pub fn lex(
-    input: &str,
-    lang: LanguageKind,
-    strictness: Strictness,
-) -> Result<LexResult, LexError> {
+pub fn lex(input: &str, config: PhynixConfig) -> Result<LexResult, LexError> {
     let mut tokens = Vec::new();
-    lex_into(input, &lang, &strictness, &mut tokens)?;
-    Ok(LexResult {
-        lang,
-        strictness,
-        tokens,
-    })
+    lex_into(input, &config, &mut tokens)?;
+    Ok(LexResult { config, tokens })
 }
 
 pub fn lex_into(
     input: &str,
-    lang: &LanguageKind,
-    strictness: &Strictness,
+    config: &PhynixConfig,
     out: &mut Vec<Token>,
 ) -> Result<(), LexError> {
     // BOM
@@ -77,7 +67,7 @@ pub fn lex_into(
         tokens: out,
         prefix: prefix_len,
         unterminated_block_at: None,
-        in_php: false,
+        in_php: matches!(config.language, phynix_core::LanguageKind::PhxCode),
     };
     lexer.run()?;
     lexer.tokens.push(Token {
@@ -799,25 +789,6 @@ fn find_next_php_open(
                 && s[p + 4] == b'p'
             {
                 return Some((p, TokenKind::PhpOpen, 5));
-            }
-
-            // <?phxt (must be before <?phx)
-            if p + 5 < s.len()
-                && s[p + 2] == b'p'
-                && s[p + 3] == b'h'
-                && s[p + 4] == b'x'
-                && s[p + 5] == b't'
-            {
-                return Some((p, TokenKind::PhxtOpen, 6));
-            }
-
-            // <?phx
-            if p + 4 < s.len()
-                && s[p + 2] == b'p'
-                && s[p + 3] == b'h'
-                && s[p + 4] == b'x'
-            {
-                return Some((p, TokenKind::PhxOpen, 5));
             }
         }
 

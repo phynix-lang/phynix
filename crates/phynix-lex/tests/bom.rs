@@ -1,6 +1,6 @@
 use crate::util::assert_kinds_eq;
 use phynix_core::token::TokenKind;
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::lex;
 
 mod util;
@@ -8,8 +8,14 @@ mod util;
 #[test]
 fn bom_is_skipped_before_first_token_kind() {
     let src = "\u{FEFF}<?php echo 1 ?>";
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
+    let out = lex(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .expect("lex ok");
     let kinds: Vec<_> = out.tokens.iter().map(|t| t.kind).collect();
 
     assert_kinds_eq(
@@ -27,8 +33,14 @@ fn bom_is_skipped_before_first_token_kind() {
 #[test]
 fn bom_does_not_shift_spans_they_still_match_original_input() {
     let src = "\u{FEFF}<?php echo 1 ?>";
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
+    let out = lex(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .expect("lex ok");
 
     let php_open = out
         .tokens
@@ -52,8 +64,14 @@ fn bom_does_not_shift_spans_they_still_match_original_input() {
 #[test]
 fn no_bom_spans_start_at_zero() {
     let src = "<?php echo 1 ?>";
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
+    let out = lex(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .expect("lex ok");
 
     let php_open = out
         .tokens

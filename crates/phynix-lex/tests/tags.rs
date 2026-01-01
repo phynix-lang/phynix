@@ -1,8 +1,8 @@
 mod util;
 
-use crate::util::{assert_kinds_eq, kinds};
+use crate::util::{assert_kinds_eq, kinds, kinds_phx, kinds_phxt};
 use phynix_core::token::TokenKind;
-use phynix_core::{LanguageKind, Strictness};
+use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::lex;
 
 #[test]
@@ -30,8 +30,14 @@ fn html_only_emits_single_html_chunk_to_eof() {
 #[test]
 fn html_only_chunk_span_covers_entire_input() {
     let src = "abc\nxyz";
-    let out =
-        lex(src, LanguageKind::PhpCompat, Strictness::Lenient).expect("lex ok");
+    let out = lex(
+        src,
+        PhynixConfig {
+            target_php_version: PhpVersion::Php84,
+            language: LanguageKind::Php,
+        },
+    )
+    .expect("lex ok");
 
     assert_eq!(out.tokens[0].kind, TokenKind::HtmlChunk);
     assert_eq!(out.tokens[0].span.start, 0);
@@ -45,15 +51,38 @@ fn detects_php_open() {
 }
 
 #[test]
-fn detects_phx_open() {
-    let k = kinds("<?phx ");
-    assert_kinds_eq(&k, &[TokenKind::PhxOpen, TokenKind::Eof]);
+fn phx_code_starts_immediately() {
+    let k = kinds_phx("$x = 1;");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::VarIdent,
+            TokenKind::Eq,
+            TokenKind::Int,
+            TokenKind::Semicolon,
+            TokenKind::Eof,
+        ],
+    );
 }
 
 #[test]
-fn detects_phxt_open() {
-    let k = kinds("<?phxt ");
-    assert_kinds_eq(&k, &[TokenKind::PhxtOpen, TokenKind::Eof]);
+fn phx_template_starts_as_html() {
+    let k = kinds_phxt("hello <b>world</b>");
+    assert_kinds_eq(&k, &[TokenKind::HtmlChunk, TokenKind::Eof]);
+}
+
+#[test]
+fn phx_template_supports_php_tags_for_now() {
+    let k = kinds_phxt("<?php $x ?>");
+    assert_kinds_eq(
+        &k,
+        &[
+            TokenKind::PhpOpen,
+            TokenKind::VarIdent,
+            TokenKind::PhpClose,
+            TokenKind::Eof,
+        ],
+    );
 }
 
 #[test]
@@ -62,35 +91,6 @@ fn unknown_question_tag_stays_html() {
     assert_kinds_eq(
         &k,
         &[TokenKind::HtmlChunk, TokenKind::PhpOpen, TokenKind::Eof],
-    );
-}
-
-#[test]
-fn phxt_open_tag_is_recognized() {
-    let k = kinds("<?phxt echo 1 ?>");
-    assert_kinds_eq(
-        &k,
-        &[
-            TokenKind::PhxtOpen,
-            TokenKind::KwEcho,
-            TokenKind::Int,
-            TokenKind::PhpClose,
-            TokenKind::Eof,
-        ],
-    );
-}
-
-#[test]
-fn phx_open_is_tokenized() {
-    let k = kinds("<?phx $x ?>");
-    assert_kinds_eq(
-        &k,
-        &[
-            TokenKind::PhxOpen,
-            TokenKind::VarIdent,
-            TokenKind::PhpClose,
-            TokenKind::Eof,
-        ],
     );
 }
 
@@ -109,15 +109,6 @@ fn html_then_echo_open_is_detected() {
     assert_kinds_eq(
         &k,
         &[TokenKind::HtmlChunk, TokenKind::EchoOpen, TokenKind::Eof],
-    );
-}
-
-#[test]
-fn html_then_phxt_open_is_detected() {
-    let k = kinds("x<?phxt ");
-    assert_kinds_eq(
-        &k,
-        &[TokenKind::HtmlChunk, TokenKind::PhxtOpen, TokenKind::Eof],
     );
 }
 
