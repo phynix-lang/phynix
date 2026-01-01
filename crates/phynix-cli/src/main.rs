@@ -110,6 +110,8 @@ fn cmd_parse(path: &str) -> Result<()> {
         }
 
         print!("\n=== Processing file: {} ===", f.display());
+        use std::io::Write;
+        std::io::stdout().flush().unwrap();
 
         // let a = fname.contains("ably-loader");
         // if a {
