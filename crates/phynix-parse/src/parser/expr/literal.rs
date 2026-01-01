@@ -166,34 +166,6 @@ impl<'src> Parser<'src> {
     }
 
     #[inline]
-    fn parse_array_literal_expr_with_default(
-        &mut self,
-        default_span: Span,
-    ) -> Expr {
-        match self.parse_array_literal(true, Some(default_span)) {
-            Some(expr) => expr,
-            None => {
-                let fake_span = Span::at(default_span.end);
-                Expr::Error { span: fake_span }
-            },
-        }
-    }
-
-    #[inline]
-    fn parse_array_construct_expr_with_default(
-        &mut self,
-        default_span: Span,
-    ) -> Expr {
-        match self.parse_array_construct() {
-            Some(expr) => expr,
-            None => {
-                let fake_span = Span::at(default_span.end);
-                Expr::Error { span: fake_span }
-            },
-        }
-    }
-
-    #[inline]
     fn eat_end_get_end(&mut self, end: TokenKind) -> Option<u32> {
         let span = self.current_span();
         if self.eat(end) {
@@ -365,15 +337,6 @@ impl<'src> Parser<'src> {
                     return (items, self.current_span().start);
                 }
                 continue;
-            } else if self.at(TokenKind::LBracket) {
-                let lb = self.bump();
-                item_start = lb.span.start;
-                first_expr =
-                    self.parse_array_literal_expr_with_default(default_span);
-            } else if self.at(TokenKind::KwArray) {
-                first_expr =
-                    self.parse_array_construct_expr_with_default(default_span);
-                item_start = first_expr.span().start;
             } else if let Some(first) = self.parse_expr() {
                 item_start = first.span().start;
                 first_expr = first;
@@ -406,17 +369,8 @@ impl<'src> Parser<'src> {
             if !is_unpack && self.eat(TokenKind::FatArrow) {
                 key_expr = Some(first_expr);
 
-                if self.at(TokenKind::LBracket) {
-                    let lb = self.bump();
-                    value_expr =
-                        self.parse_array_literal_expr_with_default(lb.span);
-                } else if self.at(TokenKind::KwArray) {
-                    value_expr = self
-                        .parse_array_construct_expr_with_default(default_span);
-                } else {
-                    let mut fat_arrow_end = fat_arrow_span.end;
-                    value_expr = self.parse_expr_or_err(&mut fat_arrow_end);
-                }
+                let mut fat_arrow_end = fat_arrow_span.end;
+                value_expr = self.parse_expr_or_err(&mut fat_arrow_end);
             } else {
                 value_expr = first_expr;
                 if is_unpack && self.at(TokenKind::FatArrow) {
