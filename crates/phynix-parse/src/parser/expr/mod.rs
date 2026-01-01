@@ -237,14 +237,26 @@ impl<'src> Parser<'src> {
 
     fn parse_conditional_expr(&mut self) -> Option<Expr> {
         let mut cond = self.parse_binop_prec(0)?;
+        let mut first = true;
+        let mut prev_was_standard = false;
 
-        if self.at(TokenKind::Question) {
+        while self.at(TokenKind::Question) {
+            if !first && prev_was_standard {
+                self.error(Diagnostic::error(
+                    ParseDiagnosticCode::UnexpectedToken, // TODO: Better error code for non-associative
+                    self.current_span(),
+                    "ternary operator is non-associative; use parentheses to clarify precedence",
+                ));
+            }
+
             let q_span = self.bump().span;
             let mut last_end = q_span.end;
 
             let then_opt = if self.at(TokenKind::Colon) {
+                prev_was_standard = false;
                 None
             } else {
+                prev_was_standard = true;
                 match self.parse_expr() {
                     Some(expr) => {
                         last_end = expr.span().end;
@@ -295,13 +307,7 @@ impl<'src> Parser<'src> {
                 span,
             };
 
-            if self.at(TokenKind::Question) {
-                self.error(Diagnostic::error(
-                    ParseDiagnosticCode::UnexpectedToken, // TODO: Better error code for non-associative
-                    self.current_span(),
-                    "ternary operator is non-associative; use parentheses to clarify precedence",
-                ));
-            }
+            first = false;
         }
 
         Some(cond)
