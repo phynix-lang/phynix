@@ -1,6 +1,5 @@
 ---
 source: crates/phynix-parse/tests/stmt/decl.rs
-assertion_line: 74
 expression: script
 ---
 items:

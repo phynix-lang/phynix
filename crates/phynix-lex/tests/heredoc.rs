@@ -138,3 +138,14 @@ fn heredoc_header_allows_cr_without_lf() {
 
     assert_kinds_eq(&k, &[TokenKind::StrDq, TokenKind::Eof]);
 }
+
+#[test]
+fn heredoc_label_inside_content_not_ending_line_is_not_closing() {
+    let src = "<<<'PHP'\n            PHPUnit_Framework_Assert::assertTrue(true);\n            PHP;\n";
+    let k = kinds_php_prefixed(src);
+
+    assert_kinds_eq(
+        &k,
+        &[TokenKind::StrDq, TokenKind::Semicolon, TokenKind::Eof],
+    );
+}

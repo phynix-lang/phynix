@@ -711,24 +711,23 @@ impl<'src> Lexer<'src> {
             }
 
             if i_lbl == label.len() {
-                let string_end = p;
-
+                // Ensure the label is followed by a newline or semicolon (or EOF)
                 let after_label = label_pos + label.len();
-                self.i = after_label;
+                let next_b = self.src.get(after_label).copied();
+                if next_b.is_none()
+                    || matches!(next_b, Some(b'\n') | Some(b'\r') | Some(b';'))
+                {
+                    let string_end = p;
 
-                if self.src.get(self.i) == Some(&b'\r') {
-                    self.i += 1;
-                }
-                if self.src.get(self.i) == Some(&b'\n') {
-                    self.i += 1;
-                }
+                    self.i = after_label;
 
-                let span = Span {
-                    start: (self.prefix + self.start) as u32,
-                    end: (self.prefix + string_end) as u32,
-                };
-                self.push(TokenKind::StrDq, span);
-                return Some(());
+                    let span = Span {
+                        start: (self.prefix + self.start) as u32,
+                        end: (self.prefix + string_end) as u32,
+                    };
+                    self.push(TokenKind::StrDq, span);
+                    return Some(());
+                }
             }
 
             if let Some(nl) = memchr(b'\n', &self.src[p..]) {
