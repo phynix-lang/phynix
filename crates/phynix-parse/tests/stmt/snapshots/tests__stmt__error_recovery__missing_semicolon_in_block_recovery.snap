@@ -1,25 +1,15 @@
 ---
 source: crates/phynix-parse/tests/stmt/error_recovery.rs
-assertion_line: 22
 expression: "(script, diags)"
 ---
 - items:
-    - Echo:
-        exprs:
-          - IntLiteral:
-              value: 1
+    - Block:
+        items:
+          - Echo:
+              exprs:
+                - IntLiteral:
+                    value: 1
 - - code:
-      Parse: UnexpectedToken
-    message: unexpected token at top level
-    severity: Error
-    span:
-      start: 6
-      end: 7
-    labels: []
-    notes: []
-    help: ~
-    fixes: []
-  - code:
       Parse:
         ExpectedToken:
           expected:
@@ -29,17 +19,6 @@ expression: "(script, diags)"
     span:
       start: 14
       end: 14
-    labels: []
-    notes: []
-    help: ~
-    fixes: []
-  - code:
-      Parse: UnexpectedToken
-    message: unexpected token at top level
-    severity: Error
-    span:
-      start: 23
-      end: 24
     labels: []
     notes: []
     help: ~

@@ -223,6 +223,8 @@ pub enum Stmt {
         #[serde(skip)]
         span: Span,
     },
+
+    Block(Block),
 }
 
 #[derive(Debug, Serialize)]
@@ -266,6 +268,7 @@ impl Spanned for Stmt {
             | Stmt::Use { span, .. }
             | Stmt::VarDecl { span, .. }
             | Stmt::While { span, .. } => *span,
+            Stmt::Block(b) => b.span,
         }
     }
 }

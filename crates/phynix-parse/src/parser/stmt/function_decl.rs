@@ -355,6 +355,8 @@ impl<'src> Parser<'src> {
             TokenKind::KwThrow,
             TokenKind::KwTry,
             TokenKind::KwWhile,
+            TokenKind::KwCase,
+            TokenKind::KwDefault,
         ];
 
         while !self.eof() {

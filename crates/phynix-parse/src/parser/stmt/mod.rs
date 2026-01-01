@@ -163,6 +163,13 @@ impl<'src> Parser<'src> {
             return self.parse_switch_stmt();
         }
 
+        if self.at(TokenKind::LBrace) {
+            let lb = self.bump();
+            return self
+                .parse_block_after_lbrace(lb.span.start)
+                .map(|(b, _)| Stmt::Block(b));
+        }
+
         if let Some(semi_token) = self.expect(TokenKind::Semicolon) {
             return Some(self.parse_empty_stmt(semi_token.span));
         }
