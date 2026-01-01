@@ -68,3 +68,8 @@ fn enum_simple() {
 fn enum_backed() {
     assert_script_snapshot!("<?php enum Foo: string {}");
 }
+
+#[test]
+fn special_parameter_types() {
+    assert_script_snapshot!("<?php class A { public function f(self $s, parent $p, static $st) {} }");
+}

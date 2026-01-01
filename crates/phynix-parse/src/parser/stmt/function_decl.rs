@@ -399,6 +399,9 @@ impl<'src> Parser<'src> {
                 | TokenKind::Backslash
                 | TokenKind::KwArray
                 | TokenKind::KwCallable
+                | TokenKind::KwSelf
+                | TokenKind::KwParent
+                | TokenKind::KwStatic
         );
 
         if !looks_like_type {
@@ -603,7 +606,12 @@ impl<'src> Parser<'src> {
 
     #[inline]
     fn try_parse_builtin_type_qn(&mut self) -> Option<QualifiedName> {
-        if !(self.at(TokenKind::KwArray) || self.at(TokenKind::KwCallable)) {
+        if !(self.at(TokenKind::KwArray)
+            || self.at(TokenKind::KwCallable)
+            || self.at(TokenKind::KwSelf)
+            || self.at(TokenKind::KwParent)
+            || self.at(TokenKind::KwStatic))
+        {
             return None;
         }
         let token = self.bump();
