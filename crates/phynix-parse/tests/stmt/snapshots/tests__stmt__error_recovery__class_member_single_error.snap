@@ -1,0 +1,35 @@
+---
+source: crates/phynix-parse/tests/stmt/error_recovery.rs
+expression: "(script, diags)"
+---
+- items:
+    - Class:
+        flags: 0
+        name:
+          Qualified:
+            absolute: false
+            parts:
+              - {}
+        extends: ~
+        implements: []
+        body:
+          - Property:
+              name: {}
+              flags: 1
+              type_annotation: ~
+              default: ~
+        attributes: []
+- - code:
+      Parse:
+        ExpectedToken:
+          expected:
+            - VarIdent
+    message: "expected 'variable'"
+    severity: Error
+    span:
+      start: 24
+      end: 24
+    labels: []
+    notes: []
+    help: ~
+    fixes: []

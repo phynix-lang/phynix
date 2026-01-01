@@ -33,6 +33,23 @@ fn class_extends_implements() {
 }
 
 #[test]
+fn class_members() {
+    assert_script_snapshot!(
+        "<?php
+class Foo {
+    public $a;
+    protected $b;
+    private $c;
+    var $d;
+    public static $e;
+    public const F = 1;
+    public function g() {}
+}
+"
+    );
+}
+
+#[test]
 fn interface_simple() {
     assert_script_snapshot!("<?php interface Foo {}");
 }

@@ -177,6 +177,12 @@ impl<'src> Parser<'src> {
                     self.bump();
                     flags |= MemberFlags::READONLY;
                 },
+                TokenKind::KwVar => {
+                    self.bump();
+                    // 'var' is equivalent to 'public' for properties.
+                    saw_visibility = true;
+                    flags |= MemberFlags::PUBLIC;
+                },
                 _ => break,
             }
         }
@@ -312,7 +318,18 @@ impl<'src> Parser<'src> {
                     ParseDiagnosticCode::expected_token(TokenKind::VarIdent),
                     Span::at(last_end),
                 ));
-                return None;
+                return Some(ClassMember::Property {
+                    name: Ident {
+                        span: Span::at(last_end),
+                    },
+                    flags,
+                    type_annotation,
+                    default: None,
+                    span: Span {
+                        start: start_pos,
+                        end: last_end,
+                    },
+                });
             },
         };
 

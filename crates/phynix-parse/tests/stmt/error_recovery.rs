@@ -28,3 +28,4 @@ test_error!(
     function_missing_params_recovery,
     "<?php function foo echo 1;"
 );
+test_error!(class_member_single_error, "<?php class Foo { public; }");

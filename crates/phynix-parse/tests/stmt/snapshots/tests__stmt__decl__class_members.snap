@@ -1,0 +1,54 @@
+---
+source: crates/phynix-parse/tests/stmt/decl.rs
+expression: script
+---
+items:
+  - Class:
+      flags: 0
+      name:
+        Qualified:
+          absolute: false
+          parts:
+            - {}
+      extends: ~
+      implements: []
+      body:
+        - Property:
+            name: {}
+            flags: 1
+            type_annotation: ~
+            default: ~
+        - Property:
+            name: {}
+            flags: 2
+            type_annotation: ~
+            default: ~
+        - Property:
+            name: {}
+            flags: 4
+            type_annotation: ~
+            default: ~
+        - Property:
+            name: {}
+            flags: 1
+            type_annotation: ~
+            default: ~
+        - Property:
+            name: {}
+            flags: 9
+            type_annotation: ~
+            default: ~
+        - Const:
+            name: {}
+            flags: 1
+            value:
+              IntLiteral:
+                value: 1
+        - Method:
+            name: {}
+            flags: 1
+            params: []
+            return_type: ~
+            body:
+              items: []
+      attributes: []
