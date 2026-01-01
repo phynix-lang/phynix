@@ -1,4 +1,4 @@
-use crate::ast::{BinOpKind, Expr, QualifiedName};
+use crate::ast::{BinOpKind, ClassNameRef, Expr, QualifiedName};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
@@ -79,10 +79,10 @@ impl<'src> Parser<'src> {
         let instanceof_token = self.bump();
         let last_end = instanceof_token.span.end;
 
-        let class_qn =
+        let class_ref =
             if self.at(TokenKind::Backslash) || self.at(TokenKind::Ident) {
                 match self.parse_qualified_name() {
-                    Some(qn) => qn,
+                    Some(qn) => ClassNameRef::Qualified(qn),
                     None => {
                         self.recover_to_any(&[
                             TokenKind::Semicolon,
@@ -98,73 +98,81 @@ impl<'src> Parser<'src> {
 
                         return Expr::InstanceOf {
                             expr: Box::new(left),
-                            class: QualifiedName {
+                            class: ClassNameRef::Qualified(QualifiedName {
                                 absolute: false,
                                 parts: vec![],
                                 span,
-                            },
+                            }),
                             span,
                         };
                     },
                 }
-            } else if self.at(TokenKind::KwSelf)
-                || self.at(TokenKind::KwParent)
-                || self.at(TokenKind::KwStatic)
-            {
-                let tok = self.bump();
-                let span = tok.span;
-                let ident = crate::ast::Ident { span };
-                QualifiedName {
-                    absolute: false,
-                    parts: vec![ident],
-                    span,
-                }
-            } else if self.at(TokenKind::VarIdent) {
-                let var_tok = self.bump();
-                let span = var_tok.span;
-                let ident = crate::ast::Ident { span };
-                QualifiedName {
-                    absolute: false,
-                    parts: vec![ident],
-                    span,
-                }
+            } else if self.at(TokenKind::KwSelf) {
+                let token = self.bump();
+                ClassNameRef::Special(crate::ast::SpecialClassName::SelfType(
+                    token.span,
+                ))
+            } else if self.at(TokenKind::KwParent) {
+                let token = self.bump();
+                ClassNameRef::Special(crate::ast::SpecialClassName::ParentType(
+                    token.span,
+                ))
+            } else if self.at(TokenKind::KwStatic) {
+                let token = self.bump();
+                ClassNameRef::Special(crate::ast::SpecialClassName::StaticType(
+                    token.span,
+                ))
             } else {
-                self.error_and_recover(
-                    Diagnostic::error_from_code(
-                        ParseDiagnosticCode::ExpectedIdent,
-                        Span::at(last_end),
-                    ),
-                    &[
-                        TokenKind::Semicolon,
-                        TokenKind::Comma,
-                        TokenKind::RParen,
-                        TokenKind::RBracket,
-                    ],
-                );
-
-                let span = Span {
-                    start: left.span().start,
-                    end: last_end,
-                };
-
-                return Expr::InstanceOf {
-                    expr: Box::new(left),
-                    class: QualifiedName {
-                        absolute: false,
-                        parts: vec![],
-                        span,
+                match self.parse_prefix_term() {
+                    Some(expr) => {
+                        let base = self.parse_postfix_chain(expr).unwrap();
+                        ClassNameRef::Dynamic(Box::new(base))
                     },
-                    span,
-                };
+                    None => {
+                        self.error_and_recover(
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedIdent,
+                                Span::at(last_end),
+                            ),
+                            &[
+                                TokenKind::Semicolon,
+                                TokenKind::Comma,
+                                TokenKind::RParen,
+                                TokenKind::RBracket,
+                            ],
+                        );
+
+                        let span = Span {
+                            start: left.span().start,
+                            end: last_end,
+                        };
+
+                        return Expr::InstanceOf {
+                            expr: Box::new(left),
+                            class: ClassNameRef::Qualified(QualifiedName {
+                                absolute: false,
+                                parts: vec![],
+                                span,
+                            }),
+                            span,
+                        };
+                    },
+                }
             };
+
+        let class_span = match &class_ref {
+            ClassNameRef::Qualified(qn) => qn.span,
+            ClassNameRef::Special(special) => special.span(),
+            ClassNameRef::Dynamic(expr) => expr.span(),
+        };
 
         let span = Span {
             start: left.span().start,
-            end: class_qn.span.end,
+            end: class_span.end,
         };
         Expr::InstanceOf {
             expr: Box::new(left),
-            class: class_qn,
+            class: class_ref,
             span,
         }
     }

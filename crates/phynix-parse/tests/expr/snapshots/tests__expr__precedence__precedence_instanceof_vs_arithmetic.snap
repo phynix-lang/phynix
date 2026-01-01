@@ -16,6 +16,7 @@ items:
                 VarRef:
                   name: {}
               class:
-                absolute: false
-                parts:
-                  - {}
+                Qualified:
+                  absolute: false
+                  parts:
+                    - {}

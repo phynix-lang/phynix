@@ -187,7 +187,7 @@ pub enum Expr {
     /// $expr instanceof ClassName
     InstanceOf {
         expr: Box<Expr>,
-        class: QualifiedName,
+        class: ClassNameRef,
         #[serde(skip)]
         span: Span,
     },

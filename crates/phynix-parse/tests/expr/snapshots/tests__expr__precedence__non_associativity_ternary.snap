@@ -13,17 +13,3 @@ expression: diags
   notes: []
   help: ~
   fixes: []
-- code:
-    Parse:
-      ExpectedToken:
-        expected:
-          - Semicolon
-  message: "expected ';'"
-  severity: Error
-  span:
-    start: 18
-    end: 18
-  labels: []
-  notes: []
-  help: ~
-  fixes: []

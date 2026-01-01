@@ -29,11 +29,19 @@ impl Spanned for QualifiedName {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum SpecialClassName {
-    SelfType,
-    ParentType,
-    StaticType,
+    SelfType(Span),
+    ParentType(Span),
+    StaticType(Span),
+}
+
+impl Spanned for SpecialClassName {
+    fn span(&self) -> Span {
+        match self {
+            Self::SelfType(s) | Self::ParentType(s) | Self::StaticType(s) => *s,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
