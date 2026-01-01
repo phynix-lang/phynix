@@ -8,7 +8,8 @@ items:
         ArrayLiteral:
           items:
             - key: ~
-              value: ~
+              value:
+                Error: {}
               unpack: false
             - key: ~
               value:
@@ -16,5 +17,6 @@ items:
                   name: {}
               unpack: false
             - key: ~
-              value: ~
+              value:
+                Error: {}
               unpack: false

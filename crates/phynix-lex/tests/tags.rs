@@ -120,3 +120,18 @@ fn html_then_phxt_open_is_detected() {
         &[TokenKind::HtmlChunk, TokenKind::PhxtOpen, TokenKind::Eof],
     );
 }
+
+#[test]
+fn unknown_p_tag_stays_html() {
+    let k = kinds("<?pa <?php");
+    assert_kinds_eq(
+        &k,
+        &[TokenKind::HtmlChunk, TokenKind::PhpOpen, TokenKind::Eof],
+    );
+}
+
+#[test]
+fn trailing_less_than_is_html() {
+    let k = kinds("abc <");
+    assert_kinds_eq(&k, &[TokenKind::HtmlChunk, TokenKind::Eof]);
+}
