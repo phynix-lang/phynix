@@ -1,0 +1,21 @@
+---
+source: crates/phynix-parse/tests/expr/precedence.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        BinaryOp:
+          op: Mul
+          left:
+            VarRef:
+              name: {}
+          right:
+            InstanceOf:
+              expr:
+                VarRef:
+                  name: {}
+              class:
+                absolute: false
+                parts:
+                  - {}

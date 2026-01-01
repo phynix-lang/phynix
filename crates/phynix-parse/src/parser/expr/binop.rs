@@ -10,133 +10,8 @@ impl<'src> Parser<'src> {
         &mut self,
         min_prec: u8,
     ) -> Option<Expr> {
-        let mut left = self.parse_prefix_term()?;
-
-        loop {
-            if self.at(TokenKind::KwInstanceof) {
-                let instanceof_token = self.bump();
-                let last_end = instanceof_token.span.end;
-
-                let class_qn = if self.at(TokenKind::Backslash)
-                    || self.at(TokenKind::Ident)
-                {
-                    match self.parse_qualified_name() {
-                        Some(qn) => qn,
-                        None => {
-                            self.recover_to_any(&[
-                                TokenKind::Semicolon,
-                                TokenKind::Comma,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                            ]);
-
-                            let span = Span {
-                                start: left.span().start,
-                                end: last_end,
-                            };
-
-                            left = Expr::InstanceOf {
-                                expr: Box::new(left),
-                                class: QualifiedName {
-                                    absolute: false,
-                                    parts: vec![],
-                                    span,
-                                },
-                                span,
-                            };
-                            continue;
-                        },
-                    }
-                } else if self.at(TokenKind::KwSelf)
-                    || self.at(TokenKind::KwParent)
-                    || self.at(TokenKind::KwStatic)
-                {
-                    let tok = self.bump();
-                    let span = tok.span;
-                    let ident = crate::ast::Ident { span };
-                    QualifiedName {
-                        absolute: false,
-                        parts: vec![ident],
-                        span,
-                    }
-                } else if self.at(TokenKind::VarIdent) {
-                    let var_tok = self.bump();
-                    let span = var_tok.span;
-                    let ident = crate::ast::Ident { span };
-                    QualifiedName {
-                        absolute: false,
-                        parts: vec![ident],
-                        span,
-                    }
-                } else {
-                    self.error_and_recover(
-                        Diagnostic::error_from_code(
-                            ParseDiagnosticCode::ExpectedIdent,
-                            Span::at(last_end),
-                        ),
-                        &[
-                            TokenKind::Semicolon,
-                            TokenKind::Comma,
-                            TokenKind::RParen,
-                            TokenKind::RBracket,
-                        ],
-                    );
-
-                    let span = Span {
-                        start: left.span().start,
-                        end: last_end,
-                    };
-
-                    left = Expr::InstanceOf {
-                        expr: Box::new(left),
-                        class: QualifiedName {
-                            absolute: false,
-                            parts: vec![],
-                            span,
-                        },
-                        span,
-                    };
-                    continue;
-                };
-
-                let span = Span {
-                    start: left.span().start,
-                    end: class_qn.span.end,
-                };
-                left = Expr::InstanceOf {
-                    expr: Box::new(left),
-                    class: class_qn,
-                    span,
-                };
-                continue;
-            }
-
-            let Some(op_kind) = self.peek_binop() else {
-                break;
-            };
-            let prec = precedence_of(op_kind);
-            if prec < min_prec {
-                break;
-            }
-
-            let (l, r) = match self.bump_binop_and_parse_right(left, op_kind) {
-                Ok(v) => v,
-                Err(e) => return Some(e),
-            };
-
-            let span = Span {
-                start: l.span().start,
-                end: r.span().end,
-            };
-            left = Expr::BinaryOp {
-                op: op_kind,
-                left: Box::new(l),
-                right: Box::new(r),
-                span,
-            };
-        }
-
-        Some(left)
+        let left = self.parse_prefix_term()?;
+        Some(self.parse_binop_prec_from_left(left, min_prec))
     }
 
     fn parse_binop_prec_from_left(
@@ -148,9 +23,28 @@ impl<'src> Parser<'src> {
             let Some(op_kind) = self.peek_binop() else {
                 break;
             };
+
             let prec = precedence_of(op_kind);
             if prec < min_prec {
                 break;
+            }
+
+            if prec == min_prec && is_non_associative(op_kind) {
+                let cur_span = self.current_span();
+                self.error(Diagnostic::error(
+                    ParseDiagnosticCode::UnexpectedToken,
+                    cur_span,
+                    format!(
+                        "operator '{}' is non-associative",
+                        op_kind_to_str(op_kind)
+                    ),
+                ));
+                break;
+            }
+
+            if op_kind == BinOpKind::InstanceOf {
+                left = self.parse_instanceof_from_left(left);
+                continue;
             }
 
             let (l, r) = match self.bump_binop_and_parse_right(left, op_kind) {
@@ -162,15 +56,117 @@ impl<'src> Parser<'src> {
                 start: l.span().start,
                 end: r.span().end,
             };
-            left = Expr::BinaryOp {
-                op: op_kind,
-                left: Box::new(l),
-                right: Box::new(r),
-                span,
+            left = if op_kind == BinOpKind::NullCoalesce {
+                Expr::NullCoalesce {
+                    left: Box::new(l),
+                    right: Box::new(r),
+                    span,
+                }
+            } else {
+                Expr::BinaryOp {
+                    op: op_kind,
+                    left: Box::new(l),
+                    right: Box::new(r),
+                    span,
+                }
             };
         }
 
         left
+    }
+
+    fn parse_instanceof_from_left(&mut self, left: Expr) -> Expr {
+        let instanceof_token = self.bump();
+        let last_end = instanceof_token.span.end;
+
+        let class_qn =
+            if self.at(TokenKind::Backslash) || self.at(TokenKind::Ident) {
+                match self.parse_qualified_name() {
+                    Some(qn) => qn,
+                    None => {
+                        self.recover_to_any(&[
+                            TokenKind::Semicolon,
+                            TokenKind::Comma,
+                            TokenKind::RParen,
+                            TokenKind::RBracket,
+                        ]);
+
+                        let span = Span {
+                            start: left.span().start,
+                            end: last_end,
+                        };
+
+                        return Expr::InstanceOf {
+                            expr: Box::new(left),
+                            class: QualifiedName {
+                                absolute: false,
+                                parts: vec![],
+                                span,
+                            },
+                            span,
+                        };
+                    },
+                }
+            } else if self.at(TokenKind::KwSelf)
+                || self.at(TokenKind::KwParent)
+                || self.at(TokenKind::KwStatic)
+            {
+                let tok = self.bump();
+                let span = tok.span;
+                let ident = crate::ast::Ident { span };
+                QualifiedName {
+                    absolute: false,
+                    parts: vec![ident],
+                    span,
+                }
+            } else if self.at(TokenKind::VarIdent) {
+                let var_tok = self.bump();
+                let span = var_tok.span;
+                let ident = crate::ast::Ident { span };
+                QualifiedName {
+                    absolute: false,
+                    parts: vec![ident],
+                    span,
+                }
+            } else {
+                self.error_and_recover(
+                    Diagnostic::error_from_code(
+                        ParseDiagnosticCode::ExpectedIdent,
+                        Span::at(last_end),
+                    ),
+                    &[
+                        TokenKind::Semicolon,
+                        TokenKind::Comma,
+                        TokenKind::RParen,
+                        TokenKind::RBracket,
+                    ],
+                );
+
+                let span = Span {
+                    start: left.span().start,
+                    end: last_end,
+                };
+
+                return Expr::InstanceOf {
+                    expr: Box::new(left),
+                    class: QualifiedName {
+                        absolute: false,
+                        parts: vec![],
+                        span,
+                    },
+                    span,
+                };
+            };
+
+        let span = Span {
+            start: left.span().start,
+            end: class_qn.span.end,
+        };
+        Expr::InstanceOf {
+            expr: Box::new(left),
+            class: class_qn,
+            span,
+        }
     }
 
     #[inline]
@@ -212,15 +208,27 @@ impl<'src> Parser<'src> {
         };
 
         let prec = precedence_of(op_kind);
-        right = self.maybe_recurse_higher_prec(right, prec);
+        right = self.maybe_recurse_higher_prec(
+            right,
+            prec,
+            is_right_associative(op_kind),
+        );
 
         Ok((left, right))
     }
 
     #[inline]
-    fn maybe_recurse_higher_prec(&mut self, right: Expr, prec: u8) -> Expr {
-        if self.higher_prec_follows(prec) {
-            self.parse_binop_prec_from_left(right, prec + 1)
+    fn maybe_recurse_higher_prec(
+        &mut self,
+        right: Expr,
+        prec: u8,
+        right_assoc: bool,
+    ) -> Expr {
+        if self.higher_prec_follows(prec, right_assoc) {
+            self.parse_binop_prec_from_left(
+                right,
+                if right_assoc { prec } else { prec + 1 },
+            )
         } else {
             right
         }
@@ -232,9 +240,16 @@ impl<'src> Parser<'src> {
     }
 
     #[inline]
-    fn higher_prec_follows(&self, cur_prec: u8) -> bool {
+    fn higher_prec_follows(&self, cur_prec: u8, right_assoc: bool) -> bool {
         self.peek_binop()
-            .map(|k| precedence_of(k) > cur_prec)
+            .map(|k| {
+                let next_prec = precedence_of(k);
+                if right_assoc {
+                    next_prec >= cur_prec
+                } else {
+                    next_prec > cur_prec
+                }
+            })
             .unwrap_or(false)
     }
 }
@@ -283,6 +298,9 @@ pub fn token_to_binop(kind: &TokenKind) -> Option<BinOpKind> {
         // Spaceship
         TokenKind::Spaceship => Some(BinOpKind::CmpSpaceship),
 
+        // Type
+        TokenKind::KwInstanceof => Some(BinOpKind::InstanceOf),
+
         _ => None,
     }
 }
@@ -290,37 +308,93 @@ pub fn token_to_binop(kind: &TokenKind) -> Option<BinOpKind> {
 #[inline]
 pub fn precedence_of(op: BinOpKind) -> u8 {
     match op {
-        BinOpKind::Pow => 90,
+        BinOpKind::Pow => 100,
+
+        BinOpKind::InstanceOf => 90,
 
         BinOpKind::Mul | BinOpKind::Div | BinOpKind::Mod => 80,
 
-        BinOpKind::Add | BinOpKind::Sub => 70,
+        BinOpKind::Add | BinOpKind::Sub | BinOpKind::Concat => 70,
 
-        BinOpKind::Concat => 60,
-
-        BinOpKind::Shl | BinOpKind::Shr => 55,
+        BinOpKind::Shl | BinOpKind::Shr => 60,
 
         BinOpKind::CmpLt
         | BinOpKind::CmpGt
         | BinOpKind::CmpLe
-        | BinOpKind::CmpGe
-        | BinOpKind::CmpSpaceship => 50,
+        | BinOpKind::CmpGe => 50,
 
         BinOpKind::CmpEq
         | BinOpKind::CmpNe
         | BinOpKind::CmpEqStrict
-        | BinOpKind::CmpNeStrict => 45,
+        | BinOpKind::CmpNeStrict
+        | BinOpKind::CmpSpaceship => 45,
 
         BinOpKind::BitAnd => 40,
         BinOpKind::BitXor => 35,
         BinOpKind::BitOr => 30,
 
         BinOpKind::AndAnd => 20,
-        BinOpKind::NullCoalesce => 15,
         BinOpKind::OrOr => 10,
+        BinOpKind::NullCoalesce => 8,
 
-        BinOpKind::Xor => 8,
-        BinOpKind::And => 5,
+        BinOpKind::Xor => 5,
+        BinOpKind::And => 4,
         BinOpKind::Or => 2,
     }
+}
+
+#[inline]
+pub fn is_right_associative(op: BinOpKind) -> bool {
+    matches!(op, BinOpKind::Pow | BinOpKind::NullCoalesce)
+}
+
+#[inline]
+fn op_kind_to_str(op: BinOpKind) -> &'static str {
+    match op {
+        BinOpKind::Add => "+",
+        BinOpKind::Sub => "-",
+        BinOpKind::Mul => "*",
+        BinOpKind::Div => "/",
+        BinOpKind::Mod => "%",
+        BinOpKind::Pow => "**",
+        BinOpKind::Concat => ".",
+        BinOpKind::BitAnd => "&",
+        BinOpKind::BitOr => "|",
+        BinOpKind::BitXor => "^",
+        BinOpKind::Shl => "<<",
+        BinOpKind::Shr => ">>",
+        BinOpKind::AndAnd => "&&",
+        BinOpKind::OrOr => "||",
+        BinOpKind::And => "and",
+        BinOpKind::Or => "or",
+        BinOpKind::Xor => "xor",
+        BinOpKind::CmpEq => "==",
+        BinOpKind::CmpNe => "!=",
+        BinOpKind::CmpEqStrict => "===",
+        BinOpKind::CmpNeStrict => "!==",
+        BinOpKind::CmpLt => "<",
+        BinOpKind::CmpLe => "<=",
+        BinOpKind::CmpGt => ">",
+        BinOpKind::CmpGe => ">=",
+        BinOpKind::CmpSpaceship => "<=>",
+        BinOpKind::NullCoalesce => "??",
+        BinOpKind::InstanceOf => "instanceof",
+    }
+}
+
+#[inline]
+pub fn is_non_associative(op: BinOpKind) -> bool {
+    matches!(
+        op,
+        BinOpKind::CmpLt
+            | BinOpKind::CmpGt
+            | BinOpKind::CmpLe
+            | BinOpKind::CmpGe
+            | BinOpKind::CmpEq
+            | BinOpKind::CmpNe
+            | BinOpKind::CmpEqStrict
+            | BinOpKind::CmpNeStrict
+            | BinOpKind::CmpSpaceship
+            | BinOpKind::InstanceOf
+    )
 }

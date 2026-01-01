@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Copy, Clone, Debug, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum BinOpKind {
     /// Arithmetic
     Add, // +
@@ -42,6 +42,9 @@ pub enum BinOpKind {
 
     /// Spaceship
     CmpSpaceship, // <=>
+
+    /// Type
+    InstanceOf, // instanceof
 }
 
 #[derive(Debug, Serialize)]

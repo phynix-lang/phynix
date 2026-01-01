@@ -1,0 +1,5 @@
+---
+source: crates/phynix-parse/tests/expr/precedence.rs
+expression: diags
+---
+[]

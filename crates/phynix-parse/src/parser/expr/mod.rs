@@ -163,145 +163,16 @@ impl<'src> Parser<'src> {
     }
 
     pub(crate) fn parse_expr(&mut self) -> Option<Expr> {
-        self.parse_conditional_expr()
-    }
-
-    fn parse_conditional_expr(&mut self) -> Option<Expr> {
-        let mut cond = self.parse_coalesce_expr()?;
-
-        loop {
-            let q_span = self.current_span();
-            if !self.eat(TokenKind::Question) {
-                break;
-            }
-
-            let mut last_end = q_span.end;
-
-            let then_opt = if self.at(TokenKind::Colon) {
-                None
-            } else {
-                match self.parse_coalesce_expr() {
-                    Some(expr) => {
-                        last_end = expr.span().end;
-                        Some(expr)
-                    },
-                    None => {
-                        self.error_and_recover(
-                            Diagnostic::error_from_code(
-                                ParseDiagnosticCode::ExpectedExpression,
-                                Span::at(last_end),
-                            ),
-                            &[
-                                TokenKind::Colon,
-                                TokenKind::Semicolon,
-                                TokenKind::Comma,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                            ],
-                        );
-                        None
-                    },
-                }
-            };
-
-            if !self.at(TokenKind::Colon) {
-                self.error_and_recover(
-                    Diagnostic::error_from_code(
-                        ParseDiagnosticCode::expected_token(TokenKind::Colon),
-                        Span::at(last_end),
-                    ),
-                    &[
-                        TokenKind::Colon,
-                        TokenKind::Semicolon,
-                        TokenKind::Comma,
-                        TokenKind::RParen,
-                        TokenKind::RBracket,
-                    ],
-                );
-                return Some(Expr::Error {
-                    span: Span::at(last_end),
-                });
-            }
-
-            let colon_tok = self.bump();
-            let colon_end = colon_tok.span.end;
-
-            let else_expr = self
-                .parse_or_err(
-                    ParseDiagnosticCode::ExpectedExpression,
-                    Span::at(colon_end),
-                    |p| p.parse_conditional_expr(),
-                )
-                .unwrap_or_else(|s| Expr::Error { span: s });
-
-            let span = Span {
-                start: cond.span().start,
-                end: else_expr.span().end,
-            };
-
-            cond = Expr::Ternary {
-                condition: Box::new(cond),
-                then_expr: then_opt.map(Box::new),
-                else_expr: Box::new(else_expr),
-                span,
-            };
-        }
-
-        Some(cond)
-    }
-
-    fn parse_coalesce_expr(&mut self) -> Option<Expr> {
-        let mut left = self.parse_assignment_expr()?;
-
-        loop {
-            let nc_span = self.current_span();
-            if self.eat(TokenKind::NullCoalesce) {
-                let right = match self.parse_assignment_expr() {
-                    Some(expr) => expr,
-                    None => {
-                        self.error_and_recover(
-                            Diagnostic::error_from_code(
-                                ParseDiagnosticCode::ExpectedExpression,
-                                Span::at(nc_span.end),
-                            ),
-                            &[
-                                TokenKind::Comma,
-                                TokenKind::Semicolon,
-                                TokenKind::RParen,
-                                TokenKind::RBracket,
-                            ],
-                        );
-                        break;
-                    },
-                };
-
-                let span = Span {
-                    start: left.span().start,
-                    end: right.span().end,
-                };
-
-                left = Expr::NullCoalesce {
-                    left: Box::new(left),
-                    right: Box::new(right),
-                    span,
-                };
-
-                continue;
-            }
-
-            break;
-        }
-
-        Some(left)
+        self.parse_assignment_expr()
     }
 
     fn parse_assignment_expr(&mut self) -> Option<Expr> {
-        let left = self.parse_binop_prec(0)?;
+        let left = self.parse_conditional_expr()?;
 
         if self.eat(TokenKind::Eq) {
             let rhs = self
                 .parse_assignment_expr()
-                .or_else(|| self.parse_binop_prec(0))?;
+                .or_else(|| self.parse_conditional_expr())?;
             let span = Span {
                 start: left.span().start,
                 end: rhs.span().end,
@@ -316,7 +187,7 @@ impl<'src> Parser<'src> {
         if self.eat(TokenKind::NullCoalesceAssign) {
             let rhs = self
                 .parse_assignment_expr()
-                .or_else(|| self.parse_binop_prec(0))?;
+                .or_else(|| self.parse_conditional_expr())?;
             let span = Span {
                 start: left.span().start,
                 end: rhs.span().end,
@@ -348,7 +219,7 @@ impl<'src> Parser<'src> {
             self.bump();
             let rhs = self
                 .parse_assignment_expr()
-                .or_else(|| self.parse_binop_prec(0))?;
+                .or_else(|| self.parse_conditional_expr())?;
             let span = Span {
                 start: left.span().start,
                 end: rhs.span().end,
@@ -362,6 +233,78 @@ impl<'src> Parser<'src> {
         }
 
         Some(left)
+    }
+
+    fn parse_conditional_expr(&mut self) -> Option<Expr> {
+        let mut cond = self.parse_binop_prec(0)?;
+
+        if self.at(TokenKind::Question) {
+            let q_span = self.bump().span;
+            let mut last_end = q_span.end;
+
+            let then_opt = if self.at(TokenKind::Colon) {
+                None
+            } else {
+                match self.parse_expr() {
+                    Some(expr) => {
+                        last_end = expr.span().end;
+                        Some(expr)
+                    },
+                    None => {
+                        self.error_and_recover(
+                            Diagnostic::error_from_code(
+                                ParseDiagnosticCode::ExpectedExpression,
+                                Span::at(last_end),
+                            ),
+                            &[
+                                TokenKind::Colon,
+                                TokenKind::Semicolon,
+                                TokenKind::Comma,
+                                TokenKind::RParen,
+                                TokenKind::RBracket,
+                            ],
+                        );
+                        None
+                    },
+                }
+            };
+
+            if !self.expect_or_err(TokenKind::Colon, &mut last_end) {
+                return Some(Expr::Error {
+                    span: Span::at(last_end),
+                });
+            }
+
+            let else_expr = self
+                .parse_or_err(
+                    ParseDiagnosticCode::ExpectedExpression,
+                    Span::at(last_end),
+                    |p| p.parse_binop_prec(0),
+                )
+                .unwrap_or_else(|s| Expr::Error { span: s });
+
+            let span = Span {
+                start: cond.span().start,
+                end: else_expr.span().end,
+            };
+
+            cond = Expr::Ternary {
+                condition: Box::new(cond),
+                then_expr: then_opt.map(Box::new),
+                else_expr: Box::new(else_expr),
+                span,
+            };
+
+            if self.at(TokenKind::Question) {
+                self.error(Diagnostic::error(
+                    ParseDiagnosticCode::UnexpectedToken, // TODO: Better error code for non-associative
+                    self.current_span(),
+                    "ternary operator is non-associative; use parentheses to clarify precedence",
+                ));
+            }
+        }
+
+        Some(cond)
     }
 
     fn parse_binop_prec(&mut self, min_prec: u8) -> Option<Expr> {

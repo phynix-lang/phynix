@@ -1,0 +1,22 @@
+---
+source: crates/phynix-parse/tests/expr/precedence.rs
+expression: script
+---
+items:
+  - ExprStmt:
+      expr:
+        Ternary:
+          condition:
+            NullCoalesce:
+              left:
+                VarRef:
+                  name: {}
+              right:
+                VarRef:
+                  name: {}
+          then_expr:
+            VarRef:
+              name: {}
+          else_expr:
+            VarRef:
+              name: {}

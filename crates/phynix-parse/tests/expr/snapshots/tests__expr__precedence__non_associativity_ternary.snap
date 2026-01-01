@@ -1,0 +1,29 @@
+---
+source: crates/phynix-parse/tests/expr/precedence.rs
+expression: diags
+---
+- code:
+    Parse: UnexpectedToken
+  message: ternary operator is non-associative; use parentheses to clarify precedence
+  severity: Error
+  span:
+    start: 19
+    end: 20
+  labels: []
+  notes: []
+  help: ~
+  fixes: []
+- code:
+    Parse:
+      ExpectedToken:
+        expected:
+          - Semicolon
+  message: "expected ';'"
+  severity: Error
+  span:
+    start: 18
+    end: 18
+  labels: []
+  notes: []
+  help: ~
+  fixes: []
