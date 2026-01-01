@@ -1,4 +1,6 @@
-use crate::ast::{Block, Ident, Param, QualifiedName, Stmt, TypeRef};
+use crate::ast::{
+    Block, Ident, MemberFlags, Param, QualifiedName, Stmt, TypeRef,
+};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
@@ -161,7 +163,7 @@ impl<'src> Parser<'src> {
         Some((params, last_end))
     }
 
-    fn parse_single_param(&mut self) -> Option<Param> {
+    pub(crate) fn parse_single_param(&mut self) -> Option<Param> {
         let mut param_start = self.current_span().start;
 
         let _attrs = if self.at(TokenKind::AttrOpen) {
@@ -172,6 +174,30 @@ impl<'src> Parser<'src> {
         } else {
             None
         };
+
+        // [visibility] [readonly] type name [= default]
+        let mut flags = MemberFlags::empty();
+
+        match self.nth_kind(0) {
+            TokenKind::KwPublic => {
+                self.bump();
+                flags |= MemberFlags::PUBLIC;
+            },
+            TokenKind::KwProtected => {
+                self.bump();
+                flags |= MemberFlags::PROTECTED;
+            },
+            TokenKind::KwPrivate => {
+                self.bump();
+                flags |= MemberFlags::PRIVATE;
+            },
+            _ => {},
+        }
+
+        if self.at(TokenKind::KwReadonly) {
+            self.bump();
+            flags |= MemberFlags::READONLY;
+        }
 
         let (maybe_type, mut last_end) = self.parse_param_type_prefix();
 
@@ -212,6 +238,7 @@ impl<'src> Parser<'src> {
                     return Some(Param {
                         name: Ident { span: fake },
                         type_annotation: maybe_type,
+                        flags,
                         default: None,
                         span: Span {
                             start: param_start,
@@ -235,6 +262,7 @@ impl<'src> Parser<'src> {
         Some(Param {
             name: name_ident,
             type_annotation: maybe_type,
+            flags,
             default: default_expr,
             span,
         })
@@ -354,7 +382,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn parse_param_type_prefix(&mut self) -> (Option<TypeRef>, u32) {
+    pub(crate) fn parse_param_type_prefix(&mut self) -> (Option<TypeRef>, u32) {
         let mut saw_question = false;
         let mut start_pos = self.current_span().start;
 

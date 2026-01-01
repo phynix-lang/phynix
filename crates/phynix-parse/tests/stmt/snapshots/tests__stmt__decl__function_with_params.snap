@@ -1,6 +1,5 @@
 ---
 source: crates/phynix-parse/tests/stmt/decl.rs
-assertion_line: 10
 expression: script
 ---
 items:
@@ -9,9 +8,11 @@ items:
       params:
         - name: {}
           type_annotation: ~
+          flags: 0
           default: ~
         - name: {}
           type_annotation: ~
+          flags: 0
           default:
             IntLiteral:
               value: 1

@@ -1,6 +1,5 @@
 ---
 source: crates/phynix-parse/tests/stmt/error_recovery.rs
-assertion_line: 55
 expression: "(script, diags)"
 ---
 - items:
@@ -14,6 +13,7 @@ expression: "(script, diags)"
         extends: ~
         implements: []
         body: []
+        attributes: []
 - - code:
       Parse: ExpectedIdent
     message: expected identifier

@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Ident};
+use crate::ast::{Expr, Ident, QualifiedName};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
@@ -27,8 +27,8 @@ impl<'src> Parser<'src> {
             if self.at_any(&[TokenKind::Backslash, TokenKind::Ident]) {
                 if let Some(qn) = self.parse_qualified_name() {
                     let class_span = qn.span;
-                    Expr::VarRef {
-                        name: Ident { span: qn.span },
+                    Expr::ConstFetch {
+                        name: qn,
                         span: class_span,
                     }
                 } else {
@@ -48,6 +48,21 @@ impl<'src> Parser<'src> {
                     Expr::Error {
                         span: Span::at(last_end),
                     }
+                }
+            } else if self.at_any(&[
+                TokenKind::KwSelf,
+                TokenKind::KwParent,
+                TokenKind::KwStatic,
+            ]) {
+                let tok = self.bump();
+                let span = tok.span;
+                Expr::ConstFetch {
+                    name: QualifiedName {
+                        absolute: false,
+                        parts: vec![Ident { span }],
+                        span,
+                    },
+                    span,
                 }
             } else if self.at_variable_start() {
                 self.parse_variable_expr()
