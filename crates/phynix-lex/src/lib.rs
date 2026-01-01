@@ -629,9 +629,8 @@ impl<'src> Lexer<'src> {
         self.i += p;
     }
 
-    fn lex_heredoc(&mut self) -> Option<()> {
-        self.i += 3;
-
+    #[inline]
+    fn skip_horizontal_whitespace(&mut self) {
         while let Some(b) = self.src.get(self.i) {
             if *b == b' ' || *b == b'\t' {
                 self.i += 1;
@@ -639,6 +638,12 @@ impl<'src> Lexer<'src> {
                 break;
             }
         }
+    }
+
+    fn lex_heredoc(&mut self) -> Option<()> {
+        self.i += 3;
+
+        self.skip_horizontal_whitespace();
 
         let quoted = matches!(self.peek(), b'\'' | b'"');
         let quote = if quoted { Some(self.bump()) } else { None };
@@ -693,16 +698,11 @@ impl<'src> Lexer<'src> {
                 break 'scan;
             }
 
-            let mut q = p;
-            while let Some(b) = self.src.get(q) {
-                if *b == b' ' || *b == b'\t' {
-                    q += 1;
-                } else {
-                    break;
-                }
-            }
-
-            let label_pos = q;
+            let old_i = self.i;
+            self.i = p;
+            self.skip_horizontal_whitespace();
+            let label_pos = self.i;
+            self.i = old_i;
             let mut i_lbl = 0;
             while i_lbl < label.len()
                 && self.src.get(label_pos + i_lbl) == Some(&label[i_lbl])
@@ -711,24 +711,24 @@ impl<'src> Lexer<'src> {
             }
 
             if i_lbl == label.len() {
-                // Ensure the label is followed by a newline, semicolon, comma, or closing parenthesis (or EOF)
-                let after_label = label_pos + label.len();
-                let next_b = self.src.get(after_label).copied();
-                if next_b.is_none()
+                // After label, skip horizontal whitespace
+                let old_i = self.i;
+                self.i = label_pos + label.len();
+                self.skip_horizontal_whitespace();
+                let post_label = self.i;
+                self.i = old_i;
+
+                // Ensure the label/whitespace is followed by a newline, semicolon, comma, or closing punctuation (or EOF)
+                let next_b = self.src.get(post_label).copied().unwrap_or(0);
+                if next_b == 0
                     || matches!(
                         next_b,
-                        Some(b'\n')
-                            | Some(b'\r')
-                            | Some(b';')
-                            | Some(b',')
-                            | Some(b')')
-                            | Some(b']')
-                            | Some(b'}')
+                        b'\n' | b'\r' | b';' | b',' | b')' | b']' | b'}'
                     )
                 {
                     let string_end = p;
 
-                    self.i = after_label;
+                    self.i = post_label;
 
                     let span = Span {
                         start: (self.prefix + self.start) as u32,
