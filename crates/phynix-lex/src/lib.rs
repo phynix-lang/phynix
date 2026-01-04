@@ -867,7 +867,7 @@ fn kw_of_bytes(s: &[u8]) -> Option<TokenKind> {
         return None;
     }
 
-    use phynix_core::token::TokenKind::*;
+    use TokenKind::*;
     match s.len() {
         2 => match s {
             b"as" => Some(KwAs),
@@ -881,7 +881,9 @@ fn kw_of_bytes(s: &[u8]) -> Option<TokenKind> {
             b"and" => Some(KwAnd),
             b"die" => Some(KwDie),
             b"for" => Some(KwFor),
+            b"get" => Some(KwGet),
             b"new" => Some(KwNew),
+            b"set" => Some(KwSet),
             b"try" => Some(KwTry),
             b"use" => Some(KwUse),
             b"var" => Some(KwVar),

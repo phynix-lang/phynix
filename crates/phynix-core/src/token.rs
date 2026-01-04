@@ -48,7 +48,6 @@ pub enum TokenKind {
 
     /// `12.34`, `12e5`
     Float,
-
     /// `0`, `123`, `0xff`, `0b1010`
     Int,
 
@@ -222,6 +221,7 @@ pub enum TokenKind {
     KwForeach,
     KwFrom,
     KwFunction,
+    KwGet,
     KwGlobal,
     KwGoto,
     KwIf,
@@ -249,6 +249,7 @@ pub enum TokenKind {
     KwRequireOnce,
     KwReturn,
     KwSelf,
+    KwSet,
     KwStatic,
     KwSwitch,
     KwThrow,
@@ -269,23 +270,34 @@ impl TokenKind {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::HtmlChunk => "HTML",
+
             Self::PhpOpen => "<?php",
             Self::EchoOpen => "<?=",
             Self::PhpClose => "?>",
+
             Self::WS => "whitespace",
+
             Self::AttrOpen => "#[",
+
             Self::HashComment | Self::LineComment => "comment",
             Self::Docblock => "docblock",
             Self::BlockComment => "comment",
+
             Self::VarIdent => "variable",
             Self::Ident => "identifier",
+
             Self::Dollar => "$",
+
             Self::Backslash => "\\",
+
             Self::Float => "float literal",
             Self::Int => "integer literal",
+
             Self::StrDq | Self::StrSq => "string",
             Self::StrBt => "shell command",
+
             Self::NullsafeArrow => "?->",
+
             Self::ShrEq => ">>=",
             Self::ShlEq => "<<=",
             Self::PowEq => "**=",
@@ -299,6 +311,7 @@ impl TokenKind {
             Self::AmpEq => "&=",
             Self::PipeEq => "|=",
             Self::CaretEq => "^=",
+
             Self::StrictEq => "===",
             Self::StrictNe => "!==",
             Self::Spaceship => "<=>",
@@ -317,13 +330,16 @@ impl TokenKind {
             Self::Le => "<=",
             Self::Ge => ">=",
             Self::Ellipsis => "...",
+
             Self::PlusPlus => "++",
             Self::MinusMinus => "--",
+
             Self::Eq => "=",
             Self::Lt => "<",
             Self::Gt => ">",
             Self::Question => "?",
             Self::Dot => ".",
+
             Self::Plus => "+",
             Self::Minus => "-",
             Self::Star => "*",
@@ -335,15 +351,18 @@ impl TokenKind {
             Self::Silence => "@",
             Self::Bang => "!",
             Self::Tilde => "~",
+
             Self::LBrace => "{",
             Self::RBrace => "}",
             Self::LParen => "(",
             Self::RParen => ")",
             Self::LBracket => "[",
             Self::RBracket => "]",
+
             Self::Semicolon => ";",
             Self::Comma => ",",
             Self::Colon => ":",
+
             Self::KwAbstract => "abstract",
             Self::KwAnd => "and",
             Self::KwArray => "array",
@@ -381,6 +400,7 @@ impl TokenKind {
             Self::KwForeach => "foreach",
             Self::KwFrom => "from",
             Self::KwFunction => "function",
+            Self::KwGet => "get",
             Self::KwGlobal => "global",
             Self::KwGoto => "goto",
             Self::KwIf => "if",
@@ -406,6 +426,7 @@ impl TokenKind {
             Self::KwRequireOnce => "require_once",
             Self::KwReturn => "return",
             Self::KwSelf => "self",
+            Self::KwSet => "set",
             Self::KwStatic => "static",
             Self::KwSwitch => "switch",
             Self::KwThrow => "throw",
@@ -417,6 +438,7 @@ impl TokenKind {
             Self::KwWhile => "while",
             Self::KwXor => "xor",
             Self::KwYield => "yield",
+
             Self::Eof => "end of file",
         }
     }

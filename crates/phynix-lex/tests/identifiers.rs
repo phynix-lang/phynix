@@ -43,11 +43,11 @@ fn all_keywords_are_recognized() {
         "abstract and array as break callable case catch class clone const ",
         "continue declare default die do echo else elseif empty enddeclare ",
         "endfor endforeach endif endswitch endwhile enum eval exit extends ",
-        "final finally fn for foreach from function global goto if implements ",
-        "include include_once instanceof insteadof interface isset list match ",
-        "namespace new or parent print private protected public readonly ",
-        "require require_once return self static switch throw trait try unset ",
-        "use var while xor yield",
+        "final finally fn for foreach from function get global goto if ",
+        "implements include include_once instanceof insteadof interface isset ",
+        "list match namespace new or parent print private protected public ",
+        "readonly require require_once return self set static switch throw ",
+        "trait try unset use var while xor yield",
     );
 
     let k = kinds_php_prefixed(src);
@@ -92,6 +92,7 @@ fn all_keywords_are_recognized() {
             TokenKind::KwForeach,
             TokenKind::KwFrom,
             TokenKind::KwFunction,
+            TokenKind::KwGet,
             TokenKind::KwGlobal,
             TokenKind::KwGoto,
             TokenKind::KwIf,
@@ -117,6 +118,7 @@ fn all_keywords_are_recognized() {
             TokenKind::KwRequireOnce,
             TokenKind::KwReturn,
             TokenKind::KwSelf,
+            TokenKind::KwSet,
             TokenKind::KwStatic,
             TokenKind::KwSwitch,
             TokenKind::KwThrow,
