@@ -1,5 +1,5 @@
 ---
-source: crates/phynix-parse/tests/stmt/decl.rs
+source: crates/phynix-parse/tests/stmt/class_decl.rs
 expression: script
 ---
 items:
@@ -16,28 +16,38 @@ items:
         - Property:
             name: {}
             flags: 1
+            set_visibility: ~
             type_annotation: ~
             default: ~
+            hooks: ~
         - Property:
             name: {}
             flags: 2
+            set_visibility: ~
             type_annotation: ~
             default: ~
+            hooks: ~
         - Property:
             name: {}
             flags: 4
+            set_visibility: ~
             type_annotation: ~
             default: ~
+            hooks: ~
         - Property:
             name: {}
             flags: 1
+            set_visibility: ~
             type_annotation: ~
             default: ~
+            hooks: ~
         - Property:
             name: {}
             flags: 9
+            set_visibility: ~
             type_annotation: ~
             default: ~
+            hooks: ~
         - Const:
             name: {}
             flags: 1

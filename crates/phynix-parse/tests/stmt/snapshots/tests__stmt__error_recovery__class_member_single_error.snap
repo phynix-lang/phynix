@@ -16,8 +16,10 @@ expression: "(script, diags)"
           - Property:
               name: {}
               flags: 1
+              set_visibility: ~
               type_annotation: ~
               default: ~
+              hooks: ~
         attributes: []
 - - code:
       Parse:

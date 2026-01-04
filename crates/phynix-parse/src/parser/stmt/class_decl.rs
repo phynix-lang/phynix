@@ -1,6 +1,7 @@
 use crate::ast::{
-    AttributeGroup, ClassFlags, ClassMember, ClassNameRef, Expr, Ident,
-    MemberFlags, QualifiedName, Stmt,
+    AttributeGroup, Block, ClassFlags, ClassMember, ClassNameRef, Expr,
+    HookBody, Ident, MemberFlags, PropertyHookGet, PropertyHookSet,
+    PropertyHooks, QualifiedName, Stmt, Visibility,
 };
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
@@ -143,24 +144,40 @@ impl<'src> Parser<'src> {
         let start_pos = self.current_span().start;
 
         let mut flags = MemberFlags::empty();
+        let mut set_visibility: Option<Visibility> = None;
         let mut saw_visibility = false;
 
         loop {
             match self.kind() {
                 TokenKind::KwPublic => {
-                    self.bump();
-                    flags |= MemberFlags::PUBLIC;
-                    saw_visibility = true;
+                    if self.at_set_visibility_clause() {
+                        set_visibility =
+                            Some(self.bump_set_visibility_clause());
+                    } else {
+                        self.bump();
+                        flags |= MemberFlags::PUBLIC;
+                        saw_visibility = true;
+                    }
                 },
                 TokenKind::KwProtected => {
-                    self.bump();
-                    flags |= MemberFlags::PROTECTED;
-                    saw_visibility = true;
+                    if self.at_set_visibility_clause() {
+                        set_visibility =
+                            Some(self.bump_set_visibility_clause());
+                    } else {
+                        self.bump();
+                        flags |= MemberFlags::PROTECTED;
+                        saw_visibility = true;
+                    }
                 },
                 TokenKind::KwPrivate => {
-                    self.bump();
-                    flags |= MemberFlags::PRIVATE;
-                    saw_visibility = true;
+                    if self.at_set_visibility_clause() {
+                        set_visibility =
+                            Some(self.bump_set_visibility_clause());
+                    } else {
+                        self.bump();
+                        flags |= MemberFlags::PRIVATE;
+                        saw_visibility = true;
+                    }
                 },
                 TokenKind::KwStatic => {
                     self.bump();
@@ -200,7 +217,7 @@ impl<'src> Parser<'src> {
             return self.parse_class_method(start_pos, flags);
         }
 
-        self.parse_class_property(start_pos, flags)
+        self.parse_class_property(start_pos, flags, set_visibility)
     }
 
     fn parse_class_const(
@@ -309,6 +326,7 @@ impl<'src> Parser<'src> {
         &mut self,
         start_pos: u32,
         flags: MemberFlags,
+        set_visibility: Option<Visibility>,
     ) -> Option<ClassMember> {
         let (type_annotation, mut last_end) = self.parse_param_type_prefix();
 
@@ -324,8 +342,10 @@ impl<'src> Parser<'src> {
                         span: Span::at(last_end),
                     },
                     flags,
+                    set_visibility,
                     type_annotation,
                     default: None,
+                    hooks: None,
                     span: Span {
                         start: start_pos,
                         end: last_end,
@@ -344,13 +364,20 @@ impl<'src> Parser<'src> {
             default = Some(self.parse_expr_or_err(&mut last_end));
         }
 
-        self.expect_or_err(TokenKind::Semicolon, &mut last_end);
+        let hooks = if self.at(TokenKind::LBrace) {
+            Some(self.parse_property_hooks(&mut last_end))
+        } else {
+            self.expect_or_err(TokenKind::Semicolon, &mut last_end);
+            None
+        };
 
         Some(ClassMember::Property {
             name,
             flags,
+            set_visibility,
             type_annotation,
             default,
+            hooks,
             span: Span {
                 start: start_pos,
                 end: last_end,
@@ -403,5 +430,142 @@ impl<'src> Parser<'src> {
                 end: last_end,
             },
         })
+    }
+
+    fn at_set_visibility_clause(&self) -> bool {
+        matches!(
+            self.kind(),
+            TokenKind::KwPublic | TokenKind::KwProtected | TokenKind::KwPrivate
+        ) && *self.nth_kind(1) == TokenKind::LParen
+            && *self.nth_kind(2) == TokenKind::KwSet
+            && *self.nth_kind(3) == TokenKind::RParen
+    }
+
+    fn bump_set_visibility_clause(&mut self) -> Visibility {
+        let visibility = match self.kind() {
+            TokenKind::KwPublic => Visibility::Public,
+            TokenKind::KwProtected => Visibility::Protected,
+            TokenKind::KwPrivate => Visibility::Private,
+            _ => unreachable!(),
+        };
+
+        let _visibility_token = self.bump();
+        let _lparen_token = self.bump();
+        let _set_token = self.bump();
+        let _rparen_token = self.bump();
+
+        visibility
+    }
+
+    fn parse_property_hooks(&mut self, last_end: &mut u32) -> PropertyHooks {
+        debug_assert!(self.at(TokenKind::LBrace));
+        let lb = self.bump();
+        let start = lb.span.start;
+
+        let mut get: Option<PropertyHookGet> = None;
+        let mut set: Option<PropertyHookSet> = None;
+
+        while !self.eof() && !self.at(TokenKind::RBrace) {
+            match self.kind() {
+                TokenKind::KwGet => {
+                    let kw = self.bump();
+                    let body = self.parse_hook_body(last_end);
+                    get = Some(PropertyHookGet {
+                        body,
+                        span: Span {
+                            start: kw.span.start,
+                            end: *last_end,
+                        },
+                    });
+                },
+                TokenKind::KwSet => {
+                    let kw = self.bump();
+
+                    // optional: set(...)
+                    let param = if self.eat(TokenKind::LParen) {
+                        let p = if self.at(TokenKind::RParen) {
+                            None
+                        } else {
+                            self.parse_single_param()
+                        };
+                        self.expect_or_err(TokenKind::RParen, last_end);
+                        p
+                    } else {
+                        None
+                    };
+
+                    let body = self.parse_hook_body(last_end);
+
+                    set = Some(PropertyHookSet {
+                        param,
+                        body,
+                        span: Span {
+                            start: kw.span.start,
+                            end: *last_end,
+                        },
+                    });
+                },
+                TokenKind::Semicolon => {
+                    self.bump();
+                },
+                _ => {
+                    // recover: skip tokens until we hit get/set/} or ;
+                    let err_pos = self.current_span().start;
+                    self.error_and_recover(
+                        Diagnostic::error_from_code(
+                            ParseDiagnosticCode::ExpectedStatement,
+                            Span::at(err_pos),
+                        ),
+                        &[
+                            TokenKind::KwGet,
+                            TokenKind::KwSet,
+                            TokenKind::Semicolon,
+                            TokenKind::RBrace,
+                        ],
+                    );
+                },
+            }
+        }
+
+        self.expect_or_err(TokenKind::RBrace, last_end);
+
+        PropertyHooks {
+            get,
+            set,
+            span: Span {
+                start,
+                end: *last_end,
+            },
+        }
+    }
+
+    fn parse_hook_body(&mut self, last_end: &mut u32) -> HookBody {
+        if self.eat(TokenKind::FatArrow) {
+            let expr = self.parse_expr_or_err(last_end);
+            self.expect_or_err(TokenKind::Semicolon, last_end);
+            HookBody::Expr(expr)
+        } else if self.at(TokenKind::LBrace) {
+            let lb = self.bump();
+            if let Some((block, end)) =
+                self.parse_block_after_lbrace(lb.span.start)
+            {
+                *last_end = end;
+                HookBody::Block(block)
+            } else {
+                HookBody::Block(Block {
+                    items: Vec::new(),
+                    span: Span::at(lb.span.end),
+                })
+            }
+        } else {
+            let err_pos = self.current_span().start;
+            self.error(Diagnostic::error_from_code(
+                ParseDiagnosticCode::ExpectedExpression,
+                Span::at(err_pos),
+            ));
+            HookBody::Expr(Expr::Error {
+                span: Span::at(err_pos),
+            })
+        }
     }
 }

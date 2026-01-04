@@ -1,6 +1,10 @@
-pub mod decl;
+pub mod class_decl;
 pub mod echo;
+pub mod enum_decl;
 pub mod error_recovery;
+pub mod function_decl;
 pub mod r#if;
+pub mod interface_decl;
 pub mod r#loop;
 pub mod misc;
+pub mod trait_decl;

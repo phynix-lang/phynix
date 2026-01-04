@@ -13,8 +13,10 @@ pub enum ClassMember {
     Property {
         name: Ident,
         flags: MemberFlags,
+        set_visibility: Option<Visibility>,
         type_annotation: Option<TypeRef>,
         default: Option<Expr>,
+        hooks: Option<PropertyHooks>,
         #[serde(skip)]
         span: Span,
     },
@@ -74,4 +76,40 @@ impl Serialize for MemberFlags {
     {
         serializer.serialize_u16(self.bits())
     }
+}
+
+#[derive(Debug, Serialize)]
+pub enum Visibility {
+    Public,
+    Protected,
+    Private,
+}
+
+#[derive(Debug, Serialize)]
+pub enum HookBody {
+    Expr(Expr),
+    Block(Block),
+}
+
+#[derive(Debug, Serialize)]
+pub struct PropertyHooks {
+    pub get: Option<PropertyHookGet>,
+    pub set: Option<PropertyHookSet>,
+    #[serde(skip)]
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PropertyHookGet {
+    pub body: HookBody,
+    #[serde(skip)]
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PropertyHookSet {
+    pub param: Option<Param>,
+    pub body: HookBody,
+    #[serde(skip)]
+    pub span: Span,
 }

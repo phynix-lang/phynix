@@ -224,6 +224,7 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwForeach
                 | TokenKind::KwFrom
                 | TokenKind::KwFunction
+                | TokenKind::KwGet
                 | TokenKind::KwGlobal
                 | TokenKind::KwGoto
                 | TokenKind::KwIf
@@ -249,6 +250,7 @@ impl<'src> Parser<'src> {
                 | TokenKind::KwRequireOnce
                 | TokenKind::KwReturn
                 | TokenKind::KwSelf
+                | TokenKind::KwSet
                 | TokenKind::KwStatic
                 | TokenKind::KwSwitch
                 | TokenKind::KwThrow

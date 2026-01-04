@@ -1,0 +1,37 @@
+---
+source: crates/phynix-parse/tests/stmt/class_decl.rs
+expression: script
+---
+items:
+  - Class:
+      flags: 0
+      name:
+        Qualified:
+          absolute: false
+          parts:
+            - {}
+      extends: ~
+      implements: []
+      body:
+        - Property:
+            name: {}
+            flags: 1
+            set_visibility: ~
+            type_annotation:
+              Named:
+                name:
+                  absolute: false
+                  parts:
+                    - {}
+            default: ~
+            hooks:
+              get:
+                body:
+                  Expr:
+                    PropertyFetch:
+                      target:
+                        VarRef:
+                          name: {}
+                      property: {}
+              set: ~
+      attributes: []
