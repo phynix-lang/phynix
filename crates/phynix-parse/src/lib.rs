@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod parser;
 
+use crate::parser::Parser;
 use ast::Script;
 use phynix_core::diagnostics::Diagnostic;
 use phynix_core::token::Token;
@@ -16,7 +17,7 @@ pub fn parse(
     tokens: &[Token],
     config: PhynixConfig,
 ) -> ParseResult {
-    let parser = parser::Parser::new(source, tokens, config);
+    let parser = Parser::new(source, tokens, config);
     let (ast, diagnostics) = parser.parse_script();
     ParseResult { ast, diagnostics }
 }

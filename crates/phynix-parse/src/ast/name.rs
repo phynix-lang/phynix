@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use super::Expr;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Ident {
     #[serde(skip)]
     pub span: Span,
@@ -29,7 +29,7 @@ impl Spanned for QualifiedName {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 pub enum SpecialClassName {
     SelfType(Span),
     ParentType(Span),

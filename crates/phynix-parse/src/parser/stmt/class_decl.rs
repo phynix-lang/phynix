@@ -21,10 +21,11 @@ impl<'src> Parser<'src> {
 
         let mut last_end = class_token.span.end;
         let class_ident = self.expect_ident_ast_or_err(&mut last_end);
+        let class_ident_span = class_ident.span;
         let class_name_qn = QualifiedName {
             absolute: false,
-            parts: vec![class_ident.clone()],
-            span: class_ident.span,
+            parts: vec![class_ident],
+            span: class_ident_span,
         };
 
         let mut extends_name: Option<QualifiedName> = None;

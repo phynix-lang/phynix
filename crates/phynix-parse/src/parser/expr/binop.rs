@@ -1,4 +1,6 @@
-use crate::ast::{BinOpKind, ClassNameRef, Expr, QualifiedName};
+use crate::ast::{
+    BinOpKind, ClassNameRef, Expr, QualifiedName, SpecialClassName,
+};
 use crate::parser::Parser;
 use phynix_core::diagnostics::parser::ParseDiagnosticCode;
 use phynix_core::diagnostics::Diagnostic;
@@ -115,19 +117,16 @@ impl<'src> Parser<'src> {
             class_ref = self.parse_instanceof_dynamic_class_ref();
         } else if self.at(TokenKind::KwSelf) {
             let token = self.bump();
-            class_ref = ClassNameRef::Special(
-                crate::ast::SpecialClassName::SelfType(token.span),
-            );
+            class_ref =
+                ClassNameRef::Special(SpecialClassName::SelfType(token.span));
         } else if self.at(TokenKind::KwParent) {
             let token = self.bump();
-            class_ref = ClassNameRef::Special(
-                crate::ast::SpecialClassName::ParentType(token.span),
-            );
+            class_ref =
+                ClassNameRef::Special(SpecialClassName::ParentType(token.span));
         } else if self.at(TokenKind::KwStatic) {
             let token = self.bump();
-            class_ref = ClassNameRef::Special(
-                crate::ast::SpecialClassName::StaticType(token.span),
-            );
+            class_ref =
+                ClassNameRef::Special(SpecialClassName::StaticType(token.span));
         } else {
             match self.parse_prefix_term() {
                 Some(expr) => {
