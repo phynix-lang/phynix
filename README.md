@@ -29,12 +29,19 @@
 
   <!-- Build -->
   <!--suppress HtmlUnknownTarget -->
-  <!-- TODO -->
-  <!-- <a href="../../actions/workflows/tests.yml" target="_blank">
+  <a href="../../actions/workflows/tests.yml" target="_blank">
     <img 
       alt="Build" src="https://img.shields.io/github/actions/workflow/status/phynix-lang/phynix/tests.yml?label=Build&labelColor=ebdbb2&style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGhlaWdodD0iMTYiPjxwYXRoIGZpbGw9IiM2YWFiMjAiIGQ9Ik0zMy45MTQgNDEzLjYxMmgxNDkuNTV2MjcuNTk1SDI3LjQ5NGMtMjYuMzQ4IDAtMzQuMTM2LTEzLjE5NC0yMS43MjktMzQuMzFMMTM3LjkxIDE4Ny43NTNWNjEuOTc1aC0yNi4wNzVjLTE5LjUwNCAwLTE5LjUwNC0yNy41OTUgMC0yNy41OTVoMTg5LjkzYzE5LjUwNSAwIDE5LjUwNSAyNy41OTUgMCAyNy41OTVIMjc1LjY5djEzMi44MjhoLTI3Ljk2M1Y2MS45NzVoLTgxLjg1NHYxMzIuODI4TDMzLjkxNCA0MTMuNjEyem0xMzUuNi0xNjkuMTg3TDg0LjY5MiAzODYuNTc0aDcwLjYwMWwxMDQuMzc1LTExMi45MDctMTUuNTgyLTI5LjI0MmgtNzQuNTd6bTE0NS45OTYgOS43ODNMMjA5LjUgMzY3LjUwNmwxMDYuMDEgMTEwLjI4NiAzMy41MzgtMzMuNTM4LTgwLjY1LTc2Ljc0OCA4MC42NS03OS43Ni0zMy41MzgtMzMuNTM4em01Ni45NDMgMzMuNTM3IDgwLjY1IDc5Ljc2LTgwLjY1IDc2Ljc1IDMzLjUzOCAzMy41MzdMNTEyIDM2Ny41MDYgNDA1Ljk5IDI1NC4yMDhsLTMzLjUzNyAzMy41Mzd6Ii8+PC9zdmc+"
     >
-  </a> -->
+  </a>
+
+  <!-- Coverage -->
+  <a href="https://app.codecov.io/gh/phynix-lang/phynix" target="_blank">
+    <img
+      alt="Coverage"
+      src="https://img.shields.io/codecov/c/github/phynix-lang/phynix?label=Coverage&labelColor=ebdbb2&style=flat&logo=codecov&logoColor=FFC107&color=FFC107"
+    >
+  </a>
 </p>
 
 > **Status:** Early development
