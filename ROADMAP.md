@@ -6,7 +6,7 @@
 - Output: `Vec<Token { kind, span }>`
 - Goals:
     - [X] Zero heap allocations
-    - [X] Stateless: Same input -> Same tokens
+    - [X] Stateless: Same input → Same tokens
     - [X] BOM skip
     - [X] File-mode handling (`<?php`, `<?phx`, `<?phxt`)
 - Features:
@@ -27,13 +27,29 @@
     - [X] Pratt parser for expressions, table-driven for statements
     - [X] Graceful error recovery
 - Features:
-    - [ ] Handles both `.phx` and `.php` syntactic modes
+    - [X] Handles both `.phx` and `.php` syntactic modes
     - [X] Skips trivia, stores spans on every node for mapping to source
     - [X] Produces `ParseResult { ast, diagnostics }`
 - Optimizations:
     - [ ] Arena allocator for nodes (tight memory, cache-friendly)
     - [ ] Optional incremental parse hooks later (CTS reuse)
     - [ ] No `String` duplication - spans reference source
+
+### 2.5 phynix-grammar
+
+- Purpose:
+    - Single, human-readable grammar definition
+    - Auto-generate railroad diagrams (SVG)
+    - Spec for contributors and users
+- Input: EBNF / custom DSL / Pest-style grammar
+- Output:
+    - Markdown + SVG Diagrams
+    - Grammar-based test cases (round-trip / coverage)
+- Guarantees:
+    - Grammar must stay in sync with the manual parser
+- Tooling:
+    - Custom generator or existing railroad-diagram tool
+    - Docs published with reference site
 
 ### 3. phynix-analyze
 
