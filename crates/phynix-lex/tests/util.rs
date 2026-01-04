@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![cfg(test)]
+
 use phynix_core::token::{Token, TokenKind};
 use phynix_core::{LanguageKind, PhpVersion, PhynixConfig};
 use phynix_lex::{lex, LexError};
@@ -81,16 +84,6 @@ pub fn kinds_php_prefixed(src: &str) -> Vec<TokenKind> {
         .into_iter()
         .filter(|token| (token.span.start as usize) >= prefix_len)
         .map(|token| token.kind)
-        .collect()
-}
-
-fn texts(src: &str) -> Vec<String> {
-    let tokens = lex_ok(src);
-    tokens
-        .iter()
-        .map(|token| {
-            src[token.span.start as usize..token.span.end as usize].to_string()
-        })
         .collect()
 }
 
