@@ -1,5 +1,11 @@
-<!--suppress HtmlDeprecatedAttribute -->
-<h1 align="center">Phynix</h1>
+<!--suppress HtmlDeprecatedAttribute, CheckImageSize -->
+<p align="center">
+  <img
+    alt="Phynix Logo"
+    width="256"
+    src="./assets/logo/Phynix%20-%20Transparent,%20Inverted.png"
+  >
+</p>
 
 <!-- Main Badges -->
 <p align="center">
